@@ -1,0 +1,386 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  PATIENT
+  DOCTOR
+  ADMIN
+}
+
+model User {
+  id           String         @id @default(uuid())
+  email        String         @unique
+  passwordHash String
+  role         Role
+  name         String
+  phone        String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  patient      Patient?
+  doctor       Doctor?
+  notifications Notification[]
+  auditLogs    AuditLog[]
+
+  @@index([email])
+  @@index([role])
+}
+
+model Patient {
+  id                    String          @id @default(uuid())
+  userId                String          @unique
+  user                  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  healthId              String          @unique // e.g. SHC-2026-000001
+  dob                   DateTime
+  gender                String          // MALE, FEMALE, OTHER
+  bloodGroup            String          // A+, B+, AB+, O+, etc.
+  address               String
+  district              String          // e.g. Riverside District
+  lat                   Float
+  lng                   Float
+  emergencyContactName  String
+  emergencyContactPhone String
+  allergies             String          @default("") // comma-separated e.g. "Penicillin, Sulfa"
+  chronicConditions     String          @default("") // e.g. "Hypertension, Type 2 Diabetes"
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  medicalRecords        MedicalRecord[]
+  diseaseEpisodes       DiseaseEpisode[]
+  prescriptions         Prescription[]
+  labReports            LabReport[]
+  familyMembers         FamilyMember[]
+  referrals             Referral[]
+
+  @@index([healthId])
+  @@index([district])
+}
+
+model Doctor {
+  id              String          @id @default(uuid())
+  userId          String          @unique
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  licenseNumber   String          @unique
+  specialty       String
+  qualification   String
+  experienceYears Int             @default(5)
+  hospitalId      String?
+  hospital        Hospital?       @relation(fields: [hospitalId], references: [id])
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  medicalRecords  MedicalRecord[]
+  prescriptions   Prescription[]
+  referralsMade   Referral[]
+
+  @@index([licenseNumber])
+  @@index([specialty])
+}
+
+model Hospital {
+  id             String          @id @default(uuid())
+  name           String
+  address        String
+  district       String
+  lat            Float
+  lng            Float
+  contactPhone   String
+  createdAt      DateTime        @default(now())
+
+  doctors        Doctor[]
+  medicalRecords MedicalRecord[]
+
+  @@index([district])
+}
+
+model FamilyMember {
+  id             String   @id @default(uuid())
+  patientId      String
+  patient        Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  relation       String   // Father, Mother, Brother, Sister, Grandfather, Grandmother, etc.
+  name           String
+  age            Int?
+  condition      String   // e.g. Cardiovascular Disease, Colorectal Cancer, Type 2 Diabetes, None
+  ageAtDiagnosis Int?
+  notes          String?
+  createdAt      DateTime @default(now())
+
+  @@index([patientId])
+}
+
+model MedicalRecord {
+  id                   String          @id @default(uuid())
+  patientId            String
+  patient              Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId             String
+  doctor               Doctor          @relation(fields: [doctorId], references: [id])
+  hospitalId           String?
+  hospital             Hospital?       @relation(fields: [hospitalId], references: [id])
+  episodeId            String?
+  episode              DiseaseEpisode? @relation(fields: [episodeId], references: [id])
+  
+  visitDate            DateTime        @default(now())
+  symptoms             String
+  diagnosis            String
+  disease              String          // e.g. Malaria, Dengue, Hypertension, Diabetes
+  severity             String          // MILD, MODERATE, SEVERE, CRITICAL
+  
+  systolicBp           Float?
+  diastolicBp          Float?
+  glucose              Float?
+  bmi                  Float?
+  heartRate            Float?
+  temperature          Float?
+  spo2                 Float?
+  
+  clinicalNotes        String
+  visitClassification  String          @default("NEW_CONDITION") // NEW_CONDITION, FOLLOW_UP, IMPROVING, WORSENING, RESOLVED, RELATED_CONDITION
+  
+  aiRiskLevel          String?         // LOW, MODERATE, HIGH
+  aiRiskScore          Float?
+  aiAnomalyDetected    Boolean         @default(false)
+  aiAnomalyDetails     String?
+  
+  locationDistrict     String
+  lat                  Float
+  lng                  Float
+  isScreening          Boolean         @default(false)
+  createdAt            DateTime        @default(now())
+
+  prescriptions        Prescription[]
+  labReports           LabReport[]
+  diseaseReport        DiseaseReport?
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([visitDate])
+  @@index([disease])
+  @@index([locationDistrict])
+}
+
+model DiseaseEpisode {
+  id           String          @id @default(uuid())
+  patientId    String
+  patient      Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  disease      String
+  episodeCode  String          // e.g. MAL-EP-001
+  status       String          @default("ACTIVE") // ACTIVE, RESOLVED
+  startDate    DateTime        @default(now())
+  resolvedDate DateTime?
+  severity     String          @default("MODERATE")
+  summary      String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  visits       MedicalRecord[]
+
+  @@index([patientId])
+  @@index([disease])
+  @@index([status])
+}
+
+model Prescription {
+  id                      String        @id @default(uuid())
+  recordId                String
+  medicalRecord           MedicalRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  patientId               String
+  patient                 Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId                String
+  doctor                  Doctor        @relation(fields: [doctorId], references: [id])
+  
+  medicineName            String
+  dosage                  String
+  frequency               String
+  durationDays            Int
+  instructions            String?
+  status                  String        @default("ACTIVE") // ACTIVE, COMPLETED, DISCONTINUED
+  allergyWarningTriggered Boolean       @default(false)
+  allergyWarningNote      String?
+  createdAt               DateTime      @default(now())
+
+  @@index([patientId])
+  @@index([recordId])
+}
+
+model LabReport {
+  id              String         @id @default(uuid())
+  recordId        String?
+  medicalRecord   MedicalRecord? @relation(fields: [recordId], references: [id], onDelete: SetNull)
+  patientId       String
+  patient         Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  
+  testName        String         // e.g. Fasting Blood Glucose, Platelet Count, HbA1c
+  testCategory    String         @default("Biochemistry")
+  measuredValue   Float
+  unit            String
+  normalRangeMin  Float
+  normalRangeMax  Float
+  isOutOfRange    Boolean        @default(false)
+  outOfRangeType  String?        // HIGH, LOW, NORMAL
+  trendDirection  String?        // UPWARD, DOWNWARD, STABLE
+  trendWarning    String?
+  reportDate      DateTime       @default(now())
+  labTechnician   String?
+  notes           String?
+  createdAt       DateTime       @default(now())
+
+  @@index([patientId])
+  @@index([testName])
+  @@index([reportDate])
+}
+
+model Referral {
+  id                String   @id @default(uuid())
+  patientId         String
+  patient           Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  referringDoctorId String
+  referringDoctor   Doctor   @relation(fields: [referringDoctorId], references: [id])
+  targetSpecialty   String
+  targetDoctorId    String?
+  reason            String
+  priority          String   @default("ROUTINE") // ROUTINE, URGENT, EMERGENCY
+  status            String   @default("GENERATED") // GENERATED, ACCEPTED, COMPLETED
+  clinicalNotes     String?
+  createdAt         DateTime @default(now())
+
+  @@index([patientId])
+  @@index([status])
+}
+
+model DiseaseReport {
+  id           String         @id @default(uuid())
+  recordId     String?        @unique
+  record       MedicalRecord? @relation(fields: [recordId], references: [id], onDelete: SetNull)
+  disease      String
+  district     String
+  lat          Float
+  lng          Float
+  reportDate   DateTime       @default(now())
+  ageGroup     String         // <18, 18-45, 46-60, 60+
+  gender       String
+  severity     String
+  source       String         @default("CLINICAL_VISIT") // CLINICAL_VISIT, CAMP_SCREENING
+
+  @@index([disease])
+  @@index([district])
+  @@index([reportDate])
+}
+
+model LocationRisk {
+  id                 String   @id @default(uuid())
+  district           String
+  disease            String
+  totalCases         Int      @default(0)
+  activeCases        Int      @default(0)
+  weeklyGrowthRate   Float    @default(0)
+  riskLevel          String   @default("NORMAL") // NORMAL, WARNING, HIGH_RISK
+  hotspotClusterId   String?
+  aiInsight          String?
+  recommendedAction  String?
+  lastEvaluatedAt    DateTime @default(now())
+
+  @@unique([district, disease])
+  @@index([district])
+  @@index([riskLevel])
+}
+
+model CommunityAlert {
+  id          String   @id @default(uuid())
+  district    String
+  disease     String
+  riskLevel   String   // NORMAL, WARNING, HIGH_RISK
+  title       String
+  message     String
+  precautions String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  @@index([district])
+  @@index([isActive])
+}
+
+model HealthCamp {
+  id                   String          @id @default(uuid())
+  district             String
+  venue                String
+  targetDisease        String
+  campDate             DateTime
+  capacity             Int             @default(200)
+  doctorsAssigned      String
+  status               String          @default("RECOMMENDED") // RECOMMENDED, APPROVED, IN_PROGRESS, COMPLETED
+  screenedCount        Int             @default(0)
+  recommendationReason String?
+  notes                String?
+  createdAt            DateTime        @default(now())
+
+  screenings           CampScreening[]
+
+  @@index([district])
+  @@index([status])
+}
+
+model CampScreening {
+  id                String     @id @default(uuid())
+  campId            String
+  healthCamp        HealthCamp @relation(fields: [campId], references: [id], onDelete: Cascade)
+  patientName       String
+  age               Int
+  gender            String
+  symptoms          String
+  suspectedDisease  String?
+  vitalsSummary     String?
+  referred          Boolean    @default(false)
+  referralSpecialty String?
+  createdAt         DateTime   @default(now())
+
+  @@index([campId])
+}
+
+model Notification {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title          String
+  message        String
+  type           String   // DISEASE_ALERT, APPOINTMENT, LAB_WARNING, AI_HEALTH_FLAG, SYSTEM
+  priority       String   @default("INFO") // INFO, WARNING, CRITICAL
+  district       String?
+  relatedDisease String?
+  isRead         Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+  @@index([isRead])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userRole   String?
+  action     String   // LOGIN, VIEW_PATIENT_RECORD, CREATE_VISIT, etc.
+  resource   String
+  resourceId String?
+  ipAddress  String?
+  details    String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model SystemSetting {
+  id          String  @id @default(uuid())
+  key         String  @unique
+  value       String
+  description String?
+
+  @@index([key])
+}
