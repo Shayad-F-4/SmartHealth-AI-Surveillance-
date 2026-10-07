@@ -20,6 +20,39 @@ export const Navbar: React.FC<{ onNavigate?: (tab: string) => void }> = ({ onNav
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
+  // Real Geolocation and Live Weather state
+  const [weather, setWeather] = useState<{ temp: number; condition: string } | null>(null);
+  const [currentLocation, setCurrentLocation] = useState<string | null>(user?.patient?.district || null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          try {
+            const { latitude, longitude } = pos.coords;
+            setCurrentLocation(`Live (${latitude.toFixed(1)}°, ${longitude.toFixed(1)}°)`);
+            const res = await fetch(
+              `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`
+            );
+            const data = await res.json();
+            if (data?.current_weather) {
+              setWeather({
+                temp: Math.round(data.current_weather.temperature),
+                condition: data.current_weather.weathercode <= 3 ? 'Clear / Fair' : 'Overcast / Cloud',
+              });
+            }
+          } catch {
+            // silent fallback
+          }
+        },
+        () => {
+          setCurrentLocation(user?.patient?.district || 'Central District');
+        }
+      );
+    }
+  }, [user]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -80,12 +113,19 @@ export const Navbar: React.FC<{ onNavigate?: (tab: string) => void }> = ({ onNav
     }
   };
 
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+    if (onNavigate) {
+      onNavigate('records');
+    }
+  };
+
   return (
     <header className="top-navbar no-print">
-      {/* Left Section - Search */}
+      {/* Left Section - Functional Search */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flex: 1 }}>
-        {/* Search Bar */}
-        <div style={{ position: 'relative', width: '100%', maxWidth: '420px' }}>
+        <form onSubmit={handleSearchSubmit} style={{ position: 'relative', width: '100%', maxWidth: '420px' }}>
           <Search 
             size={18} 
             style={{ 
@@ -98,7 +138,9 @@ export const Navbar: React.FC<{ onNavigate?: (tab: string) => void }> = ({ onNav
           />
           <input
             type="text"
-            placeholder="Search diseases, symptoms, doctors, or health tips..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search records, conditions, doctors, symptoms..."
             style={{
               width: '100%',
               padding: '0.6rem 0.9rem 0.6rem 2.75rem',
@@ -118,13 +160,13 @@ export const Navbar: React.FC<{ onNavigate?: (tab: string) => void }> = ({ onNav
               e.target.style.background = '#fafbfc';
             }}
           />
-        </div>
+        </form>
       </div>
 
       {/* Right Section - Location, Weather, Notifications, User */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', position: 'relative' }}>
-        {/* Location Selector */}
-        {user?.patient?.district && (
+        {/* Location Display */}
+        {currentLocation && (
           <div style={{ 
             display: 'flex', 
             alignItems: 'center', 
@@ -133,36 +175,36 @@ export const Navbar: React.FC<{ onNavigate?: (tab: string) => void }> = ({ onNav
             background: '#fafbfc',
             borderRadius: 'var(--radius-md)',
             border: '1px solid var(--border-light)',
-            cursor: 'pointer',
           }}>
             <MapPin size={16} color="var(--primary-600)" />
             <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)' }}>
-              {user.patient.district}
+              {currentLocation}
             </span>
-            <ChevronDown size={14} color="var(--text-muted)" />
           </div>
         )}
 
-        {/* Weather Widget */}
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '0.5rem',
-          padding: '0.5rem 0.85rem',
-          background: '#fffbeb',
-          borderRadius: 'var(--radius-md)',
-          border: '1px solid #fde68a',
-        }}>
-          <CloudSun size={18} color="#f59e0b" />
-          <div>
-            <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#b45309', lineHeight: 1 }}>
-              28°C
-            </div>
-            <div style={{ fontSize: '0.7rem', color: '#92400e' }}>
-              Partly Cloudy
+        {/* Live Weather Widget */}
+        {weather ? (
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '0.5rem',
+            padding: '0.5rem 0.85rem',
+            background: '#fffbeb',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid #fde68a',
+          }}>
+            <CloudSun size={18} color="#f59e0b" />
+            <div>
+              <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#b45309', lineHeight: 1 }}>
+                {weather.temp}°C
+              </div>
+              <div style={{ fontSize: '0.7rem', color: '#92400e' }}>
+                {weather.condition}
+              </div>
             </div>
           </div>
-        </div>
+        ) : null}
 
         {/* Emergency Fast Lookup Button */}
         <button
