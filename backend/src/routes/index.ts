@@ -41,6 +41,7 @@ router.post('/auth/logout', authenticate, authCtrl.logout);
 router.get('/auth/me', authenticate, authCtrl.getMe);
 router.put('/auth/me', authenticate, authCtrl.updateMe);
 router.post('/auth/avatar', authenticate, authCtrl.avatarUploadMiddleware, authCtrl.uploadAvatar);
+router.post('/auth/banner', authenticate, authCtrl.bannerUploadMiddleware, authCtrl.uploadBanner);
 router.post('/auth/password-reset/request', passwordResetRateLimiter, passwordResetCtrl.requestPasswordReset);
 router.post('/auth/password-reset/reset', passwordResetCtrl.resetPassword);
 

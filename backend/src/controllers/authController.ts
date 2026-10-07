@@ -61,8 +61,7 @@ export async function register(req: Request, res: Response) {
 
     const existingUser = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
     if (existingUser) {
-      // Generic error to prevent user enumeration
-      return res.status(400).json({ error: 'Registration failed. Please verify your information and try again.' });
+      return res.status(400).json({ error: 'Registration failed: An account with this email address already exists.' });
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -422,7 +421,81 @@ export async function uploadAvatar(req: AuthRequest, res: Response) {
     });
   } catch (err: any) {
     console.error('Error uploading avatar:', err);
-    return res.status(500).json({ error: err?.message || 'Failed to upload profile avatar.' });
+const BANNER_DIR = path.join(process.cwd(), 'uploads', 'banners');
+if (!fs.existsSync(BANNER_DIR)) {
+  fs.mkdirSync(BANNER_DIR, { recursive: true });
+}
+
+const bannerUpload = multer({
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (_req, file, cb) => {
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid image type. Only PNG, JPG, JPEG, and WEBP allowed.'));
+    }
+  },
+});
+
+export const bannerUploadMiddleware = bannerUpload.single('banner');
+
+export async function uploadBanner(req: AuthRequest, res: Response) {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized.' });
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: 'No banner file provided.' });
+    }
+
+    const ext = path.extname(req.file.originalname).toLowerCase() || '.png';
+    const fileName = `banner-${req.user.id}-${Date.now()}${ext}`;
+    const filePath = path.join(BANNER_DIR, fileName);
+
+    fs.writeFileSync(filePath, req.file.buffer);
+    const bannerUrl = `/uploads/banners/${fileName}`;
+
+    const updatedUser = await prisma.user.update({
+      where: { id: req.user.id },
+      data: { bannerUrl },
+      include: {
+        patient: true,
+        doctor: { include: { hospital: true } },
+      },
+    });
+
+    await logAudit(req, 'UPDATE_BANNER', 'USER', updatedUser.id, 'Updated profile banner header');
+
+    return res.json({
+      message: 'Banner uploaded successfully.',
+      bannerUrl: updatedUser.bannerUrl,
+      avatarUrl: updatedUser.avatarUrl,
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        name: updatedUser.name,
+        role: updatedUser.role,
+        phone: updatedUser.phone,
+        avatarUrl: updatedUser.avatarUrl,
+        bannerUrl: updatedUser.bannerUrl,
+        patient: updatedUser.patient ? {
+          ...updatedUser.patient,
+          verificationStatus: updatedUser.patient.verificationStatus,
+          verifiedDocumentType: updatedUser.patient.verifiedDocumentType,
+          verifiedAt: updatedUser.patient.verifiedAt,
+        } : null,
+        doctor: updatedUser.doctor ? {
+          ...updatedUser.doctor,
+          verificationStatus: updatedUser.doctor.verificationStatus,
+          verifiedDocumentType: updatedUser.doctor.verifiedDocumentType,
+          verifiedAt: updatedUser.doctor.verifiedAt,
+        } : null,
+      },
+    });
+  } catch (err: any) {
+    console.error('Error uploading banner:', err);
+    return res.status(500).json({ error: err?.message || 'Failed to upload profile banner.' });
   }
 }
 

@@ -46,12 +46,22 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onEditClick,
   const verifiedDocumentType = user?.patient?.verifiedDocumentType || user?.doctor?.verifiedDocumentType;
   const verifiedAt = user?.patient?.verifiedAt || user?.doctor?.verifiedAt;
 
-  // Healthcare-themed background banners
-  const bannerGradient = isPatient
+  const currentBannerUrl = user?.bannerUrl
+    ? user.bannerUrl.startsWith('http')
+      ? user.bannerUrl
+      : `http://localhost:5000${user.bannerUrl}`
+    : null;
+
+  // Healthcare-themed background banners or custom uploaded banner
+  const defaultBannerGradient = isPatient
     ? 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #0369a1 100%)'
     : isDoctor
     ? 'linear-gradient(135deg, #0f172a 0%, #1e40af 50%, #0284c7 100%)'
     : 'linear-gradient(135deg, #0f172a 0%, #4c1d95 50%, #1e1b4b 100%)';
+
+  const bannerBackground = currentBannerUrl
+    ? `url(${currentBannerUrl}) center/cover no-repeat`
+    : defaultBannerGradient;
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -78,6 +88,37 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onEditClick,
       setTimeout(() => setNotification(null), 4000);
     } catch (err: any) {
       setNotification({ type: 'error', text: err.response?.data?.error || 'Failed to upload profile picture.' });
+      setTimeout(() => setNotification(null), 5000);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      setNotification({ type: 'error', text: 'Banner image size exceeds 5MB limit.' });
+      setTimeout(() => setNotification(null), 4000);
+      return;
+    }
+
+    setUploading(true);
+    setNotification(null);
+    try {
+      const formData = new FormData();
+      formData.append('banner', file);
+
+      await api.post('/auth/banner', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      await refreshUser();
+      setNotification({ type: 'success', text: 'Profile header banner updated successfully!' });
+      setTimeout(() => setNotification(null), 4000);
+    } catch (err: any) {
+      setNotification({ type: 'error', text: err.response?.data?.error || 'Failed to upload banner image.' });
       setTimeout(() => setNotification(null), 5000);
     } finally {
       setUploading(false);
@@ -131,8 +172,8 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onEditClick,
       {/* Top Healthcare Cover Banner */}
       <div
         style={{
-          height: '120px',
-          background: bannerGradient,
+          height: '130px',
+          background: bannerBackground,
           position: 'relative',
           display: 'flex',
           alignItems: 'flex-end',
@@ -144,13 +185,40 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onEditClick,
           style={{
             position: 'absolute',
             inset: 0,
-            opacity: 0.12,
+            opacity: currentBannerUrl ? 0.05 : 0.12,
             backgroundImage:
               'radial-gradient(#ffffff 1px, transparent 1px), radial-gradient(#ffffff 1px, transparent 1px)',
             backgroundSize: '20px 20px',
             backgroundPosition: '0 0, 10px 10px',
           }}
         />
+
+        {/* Change Banner Trigger */}
+        <label
+          title="Change profile cover banner"
+          style={{
+            position: 'absolute',
+            bottom: '12px',
+            left: '16px',
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(8px)',
+            border: '1px solid rgba(255, 255, 255, 0.3)',
+            borderRadius: '8px',
+            padding: '0.35rem 0.75rem',
+            color: 'white',
+            fontSize: '0.75rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.35rem',
+            zIndex: 5,
+            boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+          }}
+        >
+          <Camera size={13} /> Change Cover
+          <input type="file" accept="image/*" onChange={handleBannerUpload} style={{ display: 'none' }} />
+        </label>
 
         {/* Top-Right Quick Card Link for Patients */}
         {isPatient && onViewCardClick && (
@@ -172,6 +240,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onEditClick,
               display: 'inline-flex',
               alignItems: 'center',
               gap: '0.4rem',
+              zIndex: 5,
             }}
           >
             <CreditCard size={15} /> View Smart Health Card
