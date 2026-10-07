@@ -18,12 +18,15 @@ import {
   ShieldAlert,
   Brain,
   Stethoscope,
+  TrendingUp,
 } from 'lucide-react';
 import { SmartHealthCard } from '../../components/SmartHealthCard';
 import { MedicalTimelinePage } from '../patient/MedicalTimelinePage';
 import { DiseaseEpisodesPage } from '../patient/DiseaseEpisodesPage';
 import { FamilyTree } from '../../components/FamilyTree';
 import { LabReportsPage } from '../patient/LabReportsPage';
+import { HealthTrendsPage } from '../patient/HealthTrendsPage';
+import { ClinicalDecisionSupportView } from '../../components/ClinicalDecisionSupportView';
 import api from '../../services/api';
 
 interface DoctorPatientsPageProps {
@@ -39,7 +42,7 @@ export const DoctorPatientsPage: React.FC<DoctorPatientsPageProps> = ({
   const [patients, setPatients] = useState<any[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<any>(initialPatient);
   const [familyData, setFamilyData] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<'timeline' | 'episodes' | 'family' | 'labs' | 'card'>('timeline');
+  const [activeTab, setActiveTab] = useState<'timeline' | 'episodes' | 'trends' | 'family' | 'labs' | 'card' | 'cds'>('timeline');
   const [loading, setLoading] = useState(false);
   const [showQrSimulator, setShowQrSimulator] = useState(false);
   const [isConsulting, setIsConsulting] = useState(initialMode === 'consultation' && !!initialPatient);
@@ -454,6 +457,13 @@ export const DoctorPatientsPage: React.FC<DoctorPatientsPageProps> = ({
                     <Layers size={14} /> Disease Episodes ({selectedPatient.diseaseEpisodes?.length || 0})
                   </button>
                   <button
+                    onClick={() => setActiveTab('trends')}
+                    className={`btn ${activeTab === 'trends' ? 'btn-primary' : 'btn-outline'}`}
+                    style={{ padding: '0.4rem 0.85rem', fontSize: '0.82rem' }}
+                  >
+                    <TrendingUp size={14} /> Health Trends
+                  </button>
+                  <button
                     onClick={() => setActiveTab('family')}
                     className={`btn ${activeTab === 'family' ? 'btn-primary' : 'btn-outline'}`}
                     style={{ padding: '0.4rem 0.85rem', fontSize: '0.82rem' }}
@@ -473,6 +483,13 @@ export const DoctorPatientsPage: React.FC<DoctorPatientsPageProps> = ({
                     style={{ padding: '0.4rem 0.85rem', fontSize: '0.82rem' }}
                   >
                     <CreditCard size={14} /> Smart Health Card
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('cds')}
+                    className={`btn ${activeTab === 'cds' ? 'btn-primary' : 'btn-outline'}`}
+                    style={{ padding: '0.4rem 0.85rem', fontSize: '0.82rem' }}
+                  >
+                    <Brain size={14} /> Clinical Decision Support
                   </button>
                 </div>
               )}
@@ -689,6 +706,7 @@ export const DoctorPatientsPage: React.FC<DoctorPatientsPageProps> = ({
               <div>
                 {activeTab === 'timeline' && <MedicalTimelinePage patientId={selectedPatient.id} />}
                 {activeTab === 'episodes' && <DiseaseEpisodesPage patientId={selectedPatient.id} />}
+                {activeTab === 'trends' && <HealthTrendsPage patientId={selectedPatient.id} />}
                 {activeTab === 'family' && familyData && (
                   <FamilyTree treeData={familyData} onRefresh={() => loadPatientDetails(selectedPatient.id)} canEdit={false} />
                 )}
@@ -707,6 +725,13 @@ export const DoctorPatientsPage: React.FC<DoctorPatientsPageProps> = ({
                       chronicConditions: selectedPatient.chronicConditions,
                       qrValue: `${window.location.origin}/emergency/${selectedPatient.healthId}`,
                     }}
+                  />
+                )}
+                {activeTab === 'cds' && (
+                  <ClinicalDecisionSupportView
+                    patientId={selectedPatient.id}
+                    mode="doctor"
+                    onLaunchConsultation={() => setIsConsulting(true)}
                   />
                 )}
               </div>

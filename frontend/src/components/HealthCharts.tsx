@@ -119,6 +119,51 @@ export const GlucoseTrendChart: React.FC<{ data: { date: string; glucose: number
   );
 };
 
+export const GenericLabTrendChart: React.FC<{
+  title: string;
+  unit: string;
+  data: { date: string; value: number; status: string }[];
+}> = ({ title, unit, data }) => {
+  if (!data || data.length === 0) {
+    return <div style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>No historical measurements available.</div>;
+  }
+
+  const chartData = {
+    labels: data.map((d) => d.date),
+    datasets: [
+      {
+        label: `${title} (${unit})`,
+        data: data.map((d) => d.value),
+        borderColor: '#2563eb',
+        backgroundColor: 'rgba(37, 99, 235, 0.15)',
+        tension: 0.3,
+        fill: true,
+        pointRadius: 6,
+        pointBackgroundColor: data.map((d) => (d.status === 'ABNORMAL' ? '#ef4444' : '#10b981')),
+        pointBorderColor: '#ffffff',
+        pointBorderWidth: 2,
+      },
+    ],
+  };
+
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'top' as const },
+    },
+    scales: {
+      y: { title: { display: true, text: `${title} (${unit})` } },
+    },
+  };
+
+  return (
+    <div style={{ height: '260px', width: '100%' }}>
+      <Line data={chartData} options={options} />
+    </div>
+  );
+};
+
 export const DiseaseDistributionChart: React.FC<{ data: { disease: string; count: number }[] }> = ({ data }) => {
   const colors = ['#0284c7', '#ef4444', '#f59e0b', '#10b981', '#8b5cf6', '#06b6d4', '#ec4899'];
   const chartData = {

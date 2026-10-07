@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { HeartPulse, Lock, Mail, ArrowRight, ShieldCheck } from 'lucide-react';
+import { HeartPulse, Lock, Mail, ArrowRight, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import api from '../../services/api';
 
 export const LoginPage: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavigate }) => {
@@ -9,11 +9,26 @@ export const LoginPage: React.FC<{ onNavigate: (page: string) => void }> = ({ on
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+
+    // Frontend validation
+    if (!email || !email.includes('@')) {
+      setError('Please enter a valid email address.');
+      setLoading(false);
+      return;
+    }
+
+    if (!password || password.length < 1) {
+      setError('Please enter your password.');
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await api.post('/auth/login', { email, password });
       login(res.data.token, res.data.user);
@@ -21,7 +36,15 @@ export const LoginPage: React.FC<{ onNavigate: (page: string) => void }> = ({ on
       else if (res.data.user.role === 'DOCTOR') onNavigate('doctor-dashboard');
       else onNavigate('dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Authentication failed. Please verify credentials.');
+      const errorMsg = err.response?.data?.error || 'Authentication failed. Please verify credentials.';
+      // Map to user-friendly messages
+      if (errorMsg.includes('locked') || errorMsg.includes('429')) {
+        setError('Account temporarily locked due to too many failed attempts. Please try again later.');
+      } else if (errorMsg.includes('Invalid') || errorMsg.includes('credentials')) {
+        setError('Invalid email or password.');
+      } else {
+        setError(errorMsg);
+      }
     } finally {
       setLoading(false);
     }
@@ -84,15 +107,32 @@ export const LoginPage: React.FC<{ onNavigate: (page: string) => void }> = ({ on
             <label className="form-label">Password</label>
             <div style={{ position: 'relative' }}>
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 className="form-input"
-                style={{ paddingLeft: '2.4rem' }}
+                style={{ paddingLeft: '2.4rem', paddingRight: '2.4rem' }}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
               />
               <Lock size={16} color="#94a3b8" style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)' }} />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute',
+                  right: '0.85rem',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#94a3b8',
+                  padding: 0,
+                }}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
             </div>
           </div>
 

@@ -20,13 +20,18 @@ model User {
   role         Role
   name         String
   phone        String?
+  avatarUrl    String?
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 
-  patient      Patient?
-  doctor       Doctor?
-  notifications Notification[]
-  auditLogs    AuditLog[]
+  patient                 Patient?
+  doctor                  Doctor?
+  notifications           Notification[]
+  auditLogs               AuditLog[]
+  identityDocuments       IdentityDocument[]
+  reviewedVerifications   VerificationRequest[]
+  loginHistory            LoginHistory[]
+  mfaSetup                MFASetup?
 
   @@index([email])
   @@index([role])
@@ -48,6 +53,9 @@ model Patient {
   emergencyContactPhone String
   allergies             String          @default("") // comma-separated e.g. "Penicillin, Sulfa"
   chronicConditions     String          @default("") // e.g. "Hypertension, Type 2 Diabetes"
+  verificationStatus    VerificationStatus @default(UNVERIFIED)
+  verifiedDocumentType  String?         // The document type that verified this patient
+  verifiedAt            DateTime?
   createdAt             DateTime        @default(now())
   updatedAt             DateTime        @updatedAt
 
@@ -60,6 +68,7 @@ model Patient {
 
   @@index([healthId])
   @@index([district])
+  @@index([verificationStatus])
 }
 
 model Doctor {
@@ -72,6 +81,9 @@ model Doctor {
   experienceYears Int             @default(5)
   hospitalId      String?
   hospital        Hospital?       @relation(fields: [hospitalId], references: [id])
+  verificationStatus VerificationStatus @default(UNVERIFIED)
+  verifiedDocumentType  String?    // The credential type that verified this doctor
+  verifiedAt      DateTime?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
@@ -81,6 +93,7 @@ model Doctor {
 
   @@index([licenseNumber])
   @@index([specialty])
+  @@index([verificationStatus])
 }
 
 model Hospital {
@@ -384,3 +397,159 @@ model SystemSetting {
 
   @@index([key])
 }
+
+enum DocumentStatus {
+  TRUSTED
+  UNVERIFIED
+  DISABLED
+}
+
+enum DocumentType {
+  PASSPORT
+  PAN_CARD
+  DRIVING_LICENCE
+  VOTER_ID
+  AADHAAR_CARD
+  MEDICAL_REGISTRATION_CERTIFICATE
+  MEDICAL_DEGREE
+  SPECIALIZATION_CERTIFICATE
+  HOSPITAL_AFFILIATION_PROOF
+  OTHER_IDENTITY
+  OTHER_PROFESSIONAL
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  DOCUMENTS_PENDING
+  PROCESSING
+  AI_REVIEW
+  ADMIN_REVIEW
+  VERIFIED
+  REVIEW_REQUIRED
+  REJECTED
+  EXPIRED
+}
+
+enum ReviewDecision {
+  APPROVED
+  REJECTED
+  REQUEST_INFO
+}
+
+model KnowledgeDocument {
+  id              String         @id @default(uuid())
+  title           String
+  source          String         // WHO, CDC, NIH, MedlinePlus, NHS, etc.
+  sourceUrl       String?
+  documentVersion String?
+  category        String?        // Cardiovascular, Metabolic, Hematology, Infectious, General
+  status          DocumentStatus @default(TRUSTED)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  chunks          KnowledgeChunk[]
+
+  @@index([source])
+  @@index([status])
+  @@index([category])
+}
+
+model KnowledgeChunk {
+  id          String            @id @default(uuid())
+  documentId  String
+  document    KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  content     String            @db.Text
+  section     String?
+  subsection  String?
+  page        Int?
+  topic       String?
+  embedding   String?           @db.Text // JSON stringified float[] vector
+  metadata    String?           @db.Text // JSON metadata
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([documentId])
+  @@index([topic])
+}
+
+// Identity Document & Verification System
+model IdentityDocument {
+  id                String            @id @default(uuid())
+  userId            String
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documentType      DocumentType
+  documentNumber    String?
+  issuer            String?
+  issueDate         DateTime?
+  expiryDate        DateTime?
+  storageKey        String            // Secure storage reference, not public path
+  fileName          String
+  fileSize          Int
+  mimeType          String
+  verificationStatus VerificationStatus @default(UNVERIFIED)
+  uploadedAt        DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  verificationRequest VerificationRequest?
+
+  @@index([userId])
+  @@index([documentType])
+  @@index([verificationStatus])
+}
+
+model VerificationRequest {
+  id              String            @id @default(uuid())
+  documentId      String            @unique
+  document        IdentityDocument  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  requestType     String            // PATIENT_IDENTITY or DOCTOR_CREDENTIAL
+  userId          String
+  aiAnalysis      String?           @db.Text // JSON: OCR results, confidence scores, extracted fields
+  aiConfidence    Float?
+  aiDecision      String?           // APPROVE, REJECT, REVIEW_REQUIRED
+  adminReview     String?           @db.Text // JSON: Admin review details
+  reviewerId      String?
+  reviewer        User?             @relation(fields: [reviewerId], references: [id])
+  reviewDecision  ReviewDecision?
+  reviewReason    String?
+  reviewDate      DateTime?
+  verificationHistory String?       @db.Text // JSON: Timeline of verification events
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([userId])
+  @@index([requestType])
+  @@index([reviewDecision])
+  @@index([reviewerId])
+}
+
+// Security & Session Management
+model LoginHistory {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ipAddress   String
+  userAgent   String?
+  success     Boolean
+  failureReason String?
+  loginTime   DateTime @default(now())
+
+  @@index([userId])
+  @@index([loginTime])
+  @@index([success])
+}
+
+model MFASetup {
+  id                String   @id @default(uuid())
+  userId            String    @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  secret            String    // TOTP secret (encrypted in production)
+  enabled           Boolean   @default(false)
+  backupCodes       String?   @db.Text // JSON array of backup codes (hashed)
+  verifiedAt        DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([userId])
+}
+
+

@@ -6,24 +6,41 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
+import compression from 'compression';
 import apiRouter from './routes';
 import prisma from './config/prisma';
+import { initRedis } from './services/sessionService';
+import { performanceLogger, performanceHeaders } from './middleware/performance';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Security Middleware
 app.use(helmet({
-  crossOriginResourcePolicy: false,
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: false, // Disabled for development with Vite
+  hsts: process.env.NODE_ENV === 'production' ? {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true,
+  } : false,
 }));
 
 app.use(cors({
-  origin: '*',
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
   credentials: true,
 }));
 
+import path from 'path';
+
 app.use(express.json());
 app.use(morgan('dev'));
+app.use(compression());
+app.use(performanceLogger);
+app.use(performanceHeaders);
+
+// Serve uploads statically
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // Rate limiter for API routes
 const apiLimiter = rateLimit({
@@ -61,12 +78,15 @@ app.get('/', (req, res) => {
   });
 });
 
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, async () => {
   console.log(`=======================================================`);
   console.log(`Smart Healthcare API Backend running on port ${PORT}`);
   console.log(`Health endpoint: http://localhost:${PORT}/health`);
   console.log(`API Base:        http://localhost:${PORT}/api`);
   console.log(`=======================================================`);
+
+  // Initialize Redis for session management
+  await initRedis();
 });
 
 export default server;

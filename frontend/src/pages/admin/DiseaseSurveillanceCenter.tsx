@@ -247,18 +247,25 @@ export const DiseaseSurveillanceCenter: React.FC<DiseaseSurveillanceCenterProps>
                 </p>
                 <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                   <button
-                    onClick={() => setActiveTab('hotspots')}
+                    onClick={() => setActiveTab('insights')}
                     className="btn btn-danger"
                     style={{ padding: '0.35rem 0.85rem', fontSize: '0.8rem' }}
                   >
-                    Inspect Hotspot Telemetry &rarr;
+                    Epidemiological Briefing &rarr;
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('hotspots')}
+                    className="btn btn-outline"
+                    style={{ padding: '0.35rem 0.85rem', fontSize: '0.8rem', background: 'white' }}
+                  >
+                    Inspect Hotspots &rarr;
                   </button>
                   <button
                     onClick={() => onNavigate('health-camps')}
                     className="btn btn-outline"
                     style={{ padding: '0.35rem 0.85rem', fontSize: '0.8rem', background: 'white' }}
                   >
-                    Deploy Community Health Camp &rarr;
+                    Deploy Health Camp &rarr;
                   </button>
                 </div>
               </div>

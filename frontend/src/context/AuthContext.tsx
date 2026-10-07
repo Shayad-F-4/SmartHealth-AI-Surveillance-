@@ -7,6 +7,7 @@ export interface UserProfile {
   name: string;
   role: 'PATIENT' | 'DOCTOR' | 'ADMIN';
   phone?: string;
+  avatarUrl?: string;
   patient?: {
     id: string;
     healthId: string;
@@ -37,6 +38,7 @@ interface AuthContextType {
   unreadNotifications: number;
   login: (token: string, user: UserProfile) => void;
   logout: () => void;
+  refreshUser: () => Promise<void>;
   fetchNotificationsCount: () => Promise<void>;
 }
 
@@ -82,6 +84,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initAuth();
   }, []);
 
+  const refreshUser = async () => {
+    if (!token) return;
+    try {
+      const res = await api.get('/auth/me');
+      setUser(res.data);
+      localStorage.setItem('smarthealth_user', JSON.stringify(res.data));
+    } catch {
+      // ignore
+    }
+  };
+
   const login = (newToken: string, newUser: UserProfile) => {
     setToken(newToken);
     setUser(newUser);
@@ -107,6 +120,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         unreadNotifications,
         login,
         logout,
+        refreshUser,
         fetchNotificationsCount,
       }}
     >

@@ -3,6 +3,7 @@ import prisma from '../config/prisma';
 import { AuthRequest } from '../middleware/auth';
 import { getSurveillanceOverview } from '../services/surveillanceService';
 import { detectHotspotsWithML, forecastCasesWithML } from '../services/mlClient';
+import { generateDiseaseIntelligence } from '../services/diseaseIntelligenceService';
 import { logAudit } from '../middleware/audit';
 
 export async function getOverview(req: AuthRequest, res: Response) {
@@ -185,3 +186,15 @@ export async function getAdminInsights(req: AuthRequest, res: Response) {
     return res.status(500).json({ error: 'Failed to fetch administrative insights.' });
   }
 }
+
+export async function getIntelligence(req: AuthRequest, res: Response) {
+  try {
+    const intelligence = await generateDiseaseIntelligence();
+    await logAudit(req, 'ACCESS_SURVEILLANCE_INTELLIGENCE', 'SURVEILLANCE', undefined, `Generated disease surveillance intelligence report with status ${intelligence.overallStatus}`);
+    return res.json(intelligence);
+  } catch (err: any) {
+    console.error('[Surveillance Controller] Failed to generate intelligence:', err);
+    return res.status(500).json({ error: 'Failed to generate surveillance intelligence.', details: err.message });
+  }
+}
+

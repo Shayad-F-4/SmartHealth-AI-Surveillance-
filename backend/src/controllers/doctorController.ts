@@ -142,3 +142,57 @@ export async function getPatientFullHistory(req: AuthRequest, res: Response) {
     return res.status(500).json({ error: 'Failed to fetch patient history.' });
   }
 }
+
+export async function getDoctorProfile(req: AuthRequest, res: Response) {
+  try {
+    const doctor = await prisma.doctor.findUnique({
+      where: { userId: req.user!.id },
+      include: {
+        user: { select: { name: true, email: true, phone: true, avatarUrl: true } },
+        hospital: true,
+      },
+    });
+
+    if (!doctor) {
+      return res.status(404).json({ error: 'Doctor profile not found.' });
+    }
+
+    return res.json({
+      ...doctor,
+      verificationStatus: doctor.verificationStatus,
+      verifiedDocumentType: doctor.verifiedDocumentType,
+      verifiedAt: doctor.verifiedAt,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: 'Failed to fetch doctor profile.' });
+  }
+}
+
+export async function updateDoctorProfile(req: AuthRequest, res: Response) {
+  try {
+    const doctor = await prisma.doctor.findUnique({ where: { userId: req.user!.id } });
+    if (!doctor) {
+      return res.status(404).json({ error: 'Doctor profile not found.' });
+    }
+
+    const { specialty, qualification, experienceYears } = req.body;
+
+    const updated = await prisma.doctor.update({
+      where: { id: doctor.id },
+      data: {
+        ...(specialty !== undefined && { specialty }),
+        ...(qualification !== undefined && { qualification }),
+        ...(experienceYears !== undefined && { experienceYears: parseInt(experienceYears) }),
+      },
+      include: {
+        user: { select: { name: true, email: true, phone: true } },
+        hospital: true,
+      },
+    });
+
+    await logAudit(req, 'UPDATE_DOCTOR_PROFILE', 'DOCTOR', doctor.id, 'Updated doctor professional details');
+    return res.json({ message: 'Doctor profile updated successfully.', doctor: updated });
+  } catch (err: any) {
+    return res.status(500).json({ error: 'Failed to update doctor profile.' });
+  }
+}

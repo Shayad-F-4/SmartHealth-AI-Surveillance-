@@ -22,6 +22,7 @@ export const LandingPage: React.FC<{
   const { login } = useAuth();
   const [searchHealthId, setSearchHealthId] = useState('');
   const [loadingDemo, setLoadingDemo] = useState(false);
+  const [demoError, setDemoError] = useState<string | null>(null);
 
   const handleSearchEmergency = (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,6 +33,7 @@ export const LandingPage: React.FC<{
 
   const handleQuickDemoLogin = async (email: string, pass: string) => {
     setLoadingDemo(true);
+    setDemoError(null);
     try {
       const res = await api.post('/auth/login', { email, password: pass });
       login(res.data.token, res.data.user);
@@ -39,7 +41,7 @@ export const LandingPage: React.FC<{
       else if (res.data.user.role === 'DOCTOR') onNavigate('doctor-dashboard');
       else onNavigate('dashboard');
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Demo login failed');
+      setDemoError(err.response?.data?.error || 'Unable to authenticate with demo account. Please ensure the backend is running and the database is seeded.');
     } finally {
       setLoadingDemo(false);
     }
@@ -138,6 +140,11 @@ export const LandingPage: React.FC<{
           <div style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem' }}>
             ⚡ 1-Click Instant Demo Authentication
           </div>
+          {demoError && (
+            <div className="alert-banner alert-banner-danger" style={{ marginBottom: '1rem', padding: '0.75rem 1rem' }}>
+              <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{demoError}</div>
+            </div>
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
             {/* Patient Demo */}
             <div

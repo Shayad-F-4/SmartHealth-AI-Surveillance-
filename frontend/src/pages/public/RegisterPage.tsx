@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { HeartPulse, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { HeartPulse, ArrowRight, CheckCircle2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import api from '../../services/api';
 
 export const RegisterPage: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavigate }) => {
@@ -30,11 +30,51 @@ export const RegisterPage: React.FC<{ onNavigate: (page: string) => void }> = ({
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const validatePassword = (pwd: string): string[] => {
+    const errors: string[] = [];
+    if (pwd.length < 8) errors.push('Password must be at least 8 characters long');
+    if (!/[A-Z]/.test(pwd)) errors.push('Password must contain at least one uppercase letter');
+    if (!/[a-z]/.test(pwd)) errors.push('Password must contain at least one lowercase letter');
+    if (!/[0-9]/.test(pwd)) errors.push('Password must contain at least one number');
+    return errors;
+  };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError(null);
+    setPasswordErrors([]);
+
+    // Frontend validation
+    const pwdErrors = validatePassword(password);
+    if (pwdErrors.length > 0) {
+      setPasswordErrors(pwdErrors);
+      return;
+    }
+
+    if (!email || !email.includes('@')) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+
+    if (!name || name.trim().length < 2) {
+      setError('Please enter your full name.');
+      return;
+    }
+
+    if (!phone || phone.trim().length < 10) {
+      setError('Please enter a valid phone number.');
+      return;
+    }
+
+    if (role === 'DOCTOR' && !licenseNumber?.trim()) {
+      setError('Medical license number is required for doctor registration.');
+      return;
+    }
+
+    setLoading(true);
 
     const payload: any = {
       role,
@@ -67,7 +107,17 @@ export const RegisterPage: React.FC<{ onNavigate: (page: string) => void }> = ({
       if (role === 'DOCTOR') onNavigate('doctor-dashboard');
       else onNavigate('dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Registration failed.');
+      const errorMsg = err.response?.data?.error || 'Registration failed. Please try again.';
+      // Map backend errors to user-friendly messages
+      if (errorMsg.includes('email') || errorMsg.includes('Email')) {
+        setError('An account with this email already exists. Please use a different email or sign in.');
+      } else if (errorMsg.includes('license') || errorMsg.includes('License')) {
+        setError('This medical license number is already registered.');
+      } else if (errorMsg.includes('password') || errorMsg.includes('Password')) {
+        setError('Password does not meet security requirements.');
+      } else {
+        setError(errorMsg);
+      }
     } finally {
       setLoading(false);
     }
@@ -149,6 +199,17 @@ export const RegisterPage: React.FC<{ onNavigate: (page: string) => void }> = ({
           </div>
         )}
 
+        {passwordErrors.length > 0 && (
+          <div className="alert-banner alert-banner-danger" style={{ marginBottom: '1.25rem' }}>
+            <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>Password Requirements:</div>
+            <ul style={{ fontSize: '0.8rem', marginTop: '0.5rem', paddingLeft: '1.25rem', margin: '0.5rem 0 0 0' }}>
+              {passwordErrors.map((err, idx) => (
+                <li key={idx} style={{ marginBottom: '0.25rem' }}>{err}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <form onSubmit={handleRegister}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div className="form-group">
@@ -165,7 +226,34 @@ export const RegisterPage: React.FC<{ onNavigate: (page: string) => void }> = ({
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div className="form-group">
               <label className="form-label">Password *</label>
-              <input type="password" required className="form-input" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  className="form-input"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  style={{ paddingRight: '2.4rem' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: 'absolute',
+                    right: '0.85rem',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: '#94a3b8',
+                    padding: 0,
+                  }}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
             </div>
 
             <div className="form-group">

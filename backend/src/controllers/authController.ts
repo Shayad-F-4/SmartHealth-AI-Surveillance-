@@ -5,6 +5,8 @@ import prisma from '../config/prisma';
 import { generateSmartHealthId } from '../services/healthIdService';
 import { logAudit } from '../middleware/audit';
 import { AuthRequest } from '../middleware/auth';
+import { checkLockout, recordFailedLogin, clearFailedLogins } from '../middleware/rateLimiter';
+import { initRedis, generateSessionId, createSession, revokeSession, revokeAllUserSessions } from '../services/sessionService';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'smarthealth_jwt_secure_super_secret_2026_key';
 
@@ -40,9 +42,27 @@ export async function register(req: Request, res: Response) {
       return res.status(400).json({ error: 'Email, password, name, and role are required.' });
     }
 
+    // Password strength validation
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters long.' });
+    }
+
+    if (!/[A-Z]/.test(password)) {
+      return res.status(400).json({ error: 'Password must contain at least one uppercase letter.' });
+    }
+
+    if (!/[a-z]/.test(password)) {
+      return res.status(400).json({ error: 'Password must contain at least one lowercase letter.' });
+    }
+
+    if (!/[0-9]/.test(password)) {
+      return res.status(400).json({ error: 'Password must contain at least one number.' });
+    }
+
     const existingUser = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
     if (existingUser) {
-      return res.status(400).json({ error: 'An account with this email address already exists.' });
+      // Generic error to prevent user enumeration
+      return res.status(400).json({ error: 'Registration failed. Please verify your information and try again.' });
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -117,8 +137,14 @@ export async function register(req: Request, res: Response) {
         name: user.name,
         role: user.role,
         phone: user.phone,
-        patient: patientProfile,
-        doctor: doctorProfile,
+        patient: patientProfile ? {
+          ...patientProfile,
+          verificationStatus: 'UNVERIFIED',
+        } : null,
+        doctor: doctorProfile ? {
+          ...doctorProfile,
+          verificationStatus: 'UNVERIFIED',
+        } : null,
       },
     });
   } catch (err: any) {
@@ -134,6 +160,22 @@ export async function login(req: Request, res: Response) {
       return res.status(400).json({ error: 'Email and password are required.' });
     }
 
+    // Check for account lockout
+    const lockoutCheck = checkLockout(email.toLowerCase());
+    if (lockoutCheck.locked) {
+      await logAudit(
+        { user: undefined, ip: req.socket.remoteAddress } as any,
+        'LOGIN_BLOCKED',
+        'USER',
+        undefined,
+        `Login blocked for ${email} (too many failed attempts)`
+      );
+      return res.status(429).json({
+        error: 'Account temporarily locked due to too many failed login attempts. Please try again later.',
+        remainingTime: lockoutCheck.remainingTime ? `${lockoutCheck.remainingTime} minutes` : undefined,
+      });
+    }
+
     const user = await prisma.user.findUnique({
       where: { email: email.toLowerCase() },
       include: {
@@ -142,17 +184,79 @@ export async function login(req: Request, res: Response) {
       },
     });
 
+    // Generic error to prevent user enumeration
     if (!user) {
+      recordFailedLogin(email.toLowerCase());
+      const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+      const userAgent = req.headers['user-agent'] || 'Unknown';
+      await prisma.loginHistory.create({
+        data: {
+          userId: '00000000-0000-0000-0000-000000000000', // Placeholder for anonymous
+          ipAddress: String(ipAddress),
+          userAgent: String(userAgent),
+          success: false,
+          failureReason: 'User not found',
+        },
+      });
+      await logAudit(
+        { user: undefined, ip: req.socket.remoteAddress } as any,
+        'LOGIN_FAILED',
+        'USER',
+        undefined,
+        `Failed login attempt for ${email.toLowerCase()}`
+      );
       return res.status(401).json({ error: 'Invalid credentials. Please verify email and password.' });
     }
 
     const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) {
+      recordFailedLogin(email.toLowerCase());
+      const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+      const userAgent = req.headers['user-agent'] || 'Unknown';
+      await prisma.loginHistory.create({
+        data: {
+          userId: user.id,
+          ipAddress: String(ipAddress),
+          userAgent: String(userAgent),
+          success: false,
+          failureReason: 'Invalid password',
+        },
+      });
+      await logAudit(
+        { user: undefined, ip: req.socket.remoteAddress } as any,
+        'LOGIN_FAILED',
+        'USER',
+        user.id,
+        `Failed login attempt for user ${user.id}`
+      );
       return res.status(401).json({ error: 'Invalid credentials. Please verify email and password.' });
     }
 
+    // Clear failed login attempts on successful login
+    clearFailedLogins(email.toLowerCase());
+
+    // Generate session ID for revocation support
+    const sessionId = generateSessionId();
+
+    // Record login history
+    const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+    const userAgent = req.headers['user-agent'] || 'Unknown';
+    await prisma.loginHistory.create({
+      data: {
+        userId: user.id,
+        ipAddress: String(ipAddress),
+        userAgent: String(userAgent),
+        success: true,
+      },
+    });
+
+    // Create session in Redis for revocation support (non-blocking)
+    createSession(sessionId, user.id, user.role, String(ipAddress), String(userAgent)).catch((err) => {
+      console.error('[Auth] Failed to create session:', err);
+    });
+
     const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role, name: user.name },
+      { id: user.id, email: user.email, role: user.role, name: user.name, jti: sessionId },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -160,7 +264,7 @@ export async function login(req: Request, res: Response) {
     (req as any).user = { id: user.id, email: user.email, role: user.role, name: user.name };
     await logAudit(
       req as any,
-      'LOGIN',
+      'LOGIN_SUCCESS',
       'USER',
       user.id,
       `User logged in (${user.role})`
@@ -175,13 +279,23 @@ export async function login(req: Request, res: Response) {
         name: user.name,
         role: user.role,
         phone: user.phone,
-        patient: user.patient,
-        doctor: user.doctor,
+        patient: user.patient ? {
+          ...user.patient,
+          verificationStatus: user.patient.verificationStatus,
+          verifiedDocumentType: user.patient.verifiedDocumentType,
+          verifiedAt: user.patient.verifiedAt,
+        } : null,
+        doctor: user.doctor ? {
+          ...user.doctor,
+          verificationStatus: user.doctor.verificationStatus,
+          verifiedDocumentType: user.doctor.verifiedDocumentType,
+          verifiedAt: user.doctor.verifiedAt,
+        } : null,
       },
     });
   } catch (err: any) {
     console.error('Login error:', err);
-    return res.status(500).json({ error: 'Server error during login.', details: err.message });
+    return res.status(500).json({ error: 'Server error during login.' });
   }
 }
 
@@ -203,16 +317,254 @@ export async function getMe(req: AuthRequest, res: Response) {
       return res.status(404).json({ error: 'User not found.' });
     }
 
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
     return res.json({
       id: user.id,
       email: user.email,
       name: user.name,
       role: user.role,
       phone: user.phone,
-      patient: user.patient,
-      doctor: user.doctor,
+      avatarUrl: (user as any).avatarUrl,
+      patient: user.patient ? {
+        ...user.patient,
+        verificationStatus: user.patient.verificationStatus,
+        verifiedDocumentType: user.patient.verifiedDocumentType,
+        verifiedAt: user.patient.verifiedAt,
+      } : null,
+      doctor: user.doctor ? {
+        ...user.doctor,
+        verificationStatus: user.doctor.verificationStatus,
+        verifiedDocumentType: user.doctor.verifiedDocumentType,
+        verifiedAt: user.doctor.verifiedAt,
+      } : null,
     });
   } catch (err: any) {
     return res.status(500).json({ error: 'Failed to fetch current user profile.' });
+  }
+}
+
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+
+const AVATAR_DIR = path.join(process.cwd(), 'uploads', 'avatars');
+if (!fs.existsSync(AVATAR_DIR)) {
+  fs.mkdirSync(AVATAR_DIR, { recursive: true });
+}
+
+const avatarUpload = multer({
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (_req, file, cb) => {
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid image type. Only PNG, JPG, JPEG, and WEBP allowed.'));
+    }
+  },
+});
+
+export const avatarUploadMiddleware = avatarUpload.single('avatar');
+
+export async function uploadAvatar(req: AuthRequest, res: Response) {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized.' });
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: 'No avatar file provided.' });
+    }
+
+    const ext = path.extname(req.file.originalname).toLowerCase() || '.png';
+    const fileName = `avatar-${req.user.id}-${Date.now()}${ext}`;
+    const filePath = path.join(AVATAR_DIR, fileName);
+
+    fs.writeFileSync(filePath, req.file.buffer);
+    const avatarUrl = `/uploads/avatars/${fileName}`;
+
+    const updatedUser = await prisma.user.update({
+      where: { id: req.user.id },
+      data: { avatarUrl },
+      include: {
+        patient: true,
+        doctor: { include: { hospital: true } },
+      },
+    });
+
+    await logAudit(req, 'UPDATE_AVATAR', 'USER', updatedUser.id, 'Updated profile picture avatar');
+
+    return res.json({
+      message: 'Avatar uploaded successfully.',
+      avatarUrl: updatedUser.avatarUrl,
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        name: updatedUser.name,
+        role: updatedUser.role,
+        phone: updatedUser.phone,
+        avatarUrl: updatedUser.avatarUrl,
+        patient: updatedUser.patient ? {
+          ...updatedUser.patient,
+          verificationStatus: updatedUser.patient.verificationStatus,
+          verifiedDocumentType: updatedUser.patient.verifiedDocumentType,
+          verifiedAt: updatedUser.patient.verifiedAt,
+        } : null,
+        doctor: updatedUser.doctor ? {
+          ...updatedUser.doctor,
+          verificationStatus: updatedUser.doctor.verificationStatus,
+          verifiedDocumentType: updatedUser.doctor.verifiedDocumentType,
+          verifiedAt: updatedUser.doctor.verifiedAt,
+        } : null,
+      },
+    });
+  } catch (err: any) {
+    console.error('Error uploading avatar:', err);
+    return res.status(500).json({ error: err?.message || 'Failed to upload profile avatar.' });
+  }
+}
+
+export async function logout(req: AuthRequest, res: Response) {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized.' });
+    }
+
+    // Revoke the session if it has a jti
+    if (req.user.jti) {
+      await revokeSession(req.user.jti);
+    }
+
+    await logAudit(
+      req,
+      'LOGOUT',
+      'USER',
+      req.user.id,
+      `User logged out (${req.user.role})`
+    );
+
+    return res.json({ message: 'Logged out successfully.' });
+  } catch (err: any) {
+    return res.status(500).json({ error: 'Failed to logout.' });
+  }
+}
+
+export async function updateMe(req: AuthRequest, res: Response) {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized.' });
+    }
+
+    const { name, phone, avatarUrl, currentPassword, newPassword } = req.body;
+
+    // If changing password, verify current password
+    if (newPassword) {
+      if (!currentPassword) {
+        return res.status(400).json({ error: 'Current password is required to change password.' });
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { id: req.user.id },
+      });
+
+      if (!user) {
+        return res.status(404).json({ error: 'User not found.' });
+      }
+
+      const isMatch = await bcrypt.compare(currentPassword, user.passwordHash);
+      if (!isMatch) {
+        await logAudit(
+          req,
+          'PASSWORD_CHANGE_FAILED',
+          'USER',
+          user.id,
+          'Failed password change attempt'
+        );
+        return res.status(401).json({ error: 'Current password is incorrect.' });
+      }
+
+      // Validate new password strength
+      if (newPassword.length < 8) {
+        return res.status(400).json({ error: 'New password must be at least 8 characters long.' });
+      }
+
+      if (!/[A-Z]/.test(newPassword)) {
+        return res.status(400).json({ error: 'New password must contain at least one uppercase letter.' });
+      }
+
+      if (!/[a-z]/.test(newPassword)) {
+        return res.status(400).json({ error: 'New password must contain at least one lowercase letter.' });
+      }
+
+      if (!/[0-9]/.test(newPassword)) {
+        return res.status(400).json({ error: 'New password must contain at least one number.' });
+      }
+
+      // Hash new password
+      const salt = await bcrypt.genSalt(10);
+      const passwordHash = await bcrypt.hash(newPassword, salt);
+
+      // Update password
+      await prisma.user.update({
+        where: { id: req.user.id },
+        data: { passwordHash },
+      });
+
+      // Revoke all other sessions after password change
+      if (req.user.jti) {
+        await revokeAllUserSessions(req.user.id, req.user.jti);
+      }
+
+      await logAudit(
+        req,
+        'PASSWORD_CHANGED',
+        'USER',
+        req.user.id,
+        'Password changed successfully'
+      );
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: req.user.id },
+      data: {
+        ...(name !== undefined && { name }),
+        ...(phone !== undefined && { phone }),
+        ...(avatarUrl !== undefined && { avatarUrl }),
+      },
+      include: {
+        patient: true,
+        doctor: { include: { hospital: true } },
+      },
+    });
+
+    await logAudit(req, 'UPDATE_USER_ACCOUNT', 'USER', updatedUser.id, 'Updated user account details');
+
+    return res.json({
+      message: 'Account details updated successfully.',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        name: updatedUser.name,
+        role: updatedUser.role,
+        phone: updatedUser.phone,
+        avatarUrl: updatedUser.avatarUrl,
+        patient: updatedUser.patient ? {
+          ...updatedUser.patient,
+          verificationStatus: updatedUser.patient.verificationStatus,
+          verifiedDocumentType: updatedUser.patient.verifiedDocumentType,
+          verifiedAt: updatedUser.patient.verifiedAt,
+        } : null,
+        doctor: updatedUser.doctor ? {
+          ...updatedUser.doctor,
+          verificationStatus: updatedUser.doctor.verificationStatus,
+          verifiedDocumentType: updatedUser.doctor.verifiedDocumentType,
+          verifiedAt: updatedUser.doctor.verifiedAt,
+        } : null,
+      },
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: 'Failed to update account details.' });
   }
 }

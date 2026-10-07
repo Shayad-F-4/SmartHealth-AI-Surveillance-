@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Bell, ShieldAlert, LogOut, User, CheckCheck, Search, MapPin, CloudSun, ChevronDown } from 'lucide-react';
+import { Bell, ShieldAlert, LogOut, User, CheckCheck, Search, MapPin, CloudSun, ChevronDown, CreditCard, ShieldCheck } from 'lucide-react';
 import api from '../services/api';
 
 interface NotificationItem {
@@ -17,7 +17,32 @@ interface NotificationItem {
 export const Navbar: React.FC<{ onNavigate?: (tab: string) => void }> = ({ onNavigate }) => {
   const { user, logout, unreadNotifications, fetchNotificationsCount } = useAuth();
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowUserMenu(false);
+        setShowNotifications(false);
+      }
+    };
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.top-navbar')) {
+        setShowUserMenu(false);
+        setShowNotifications(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('click', handleClickOutside);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('click', handleClickOutside);
+    };
+  }, []);
 
   const loadNotifications = async () => {
     try {
@@ -272,29 +297,62 @@ export const Navbar: React.FC<{ onNavigate?: (tab: string) => void }> = ({ onNav
           )}
         </div>
 
-        {/* User Info & Logout */}
+        {/* User Info & Dropdown Menu */}
         {user && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div style={{ position: 'relative' }}>
+            <div
+              onClick={() => setShowUserMenu((prev) => !prev)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.6rem',
+                cursor: 'pointer',
+                padding: '0.4rem 0.6rem',
+                borderRadius: 'var(--radius-md)',
+                background: showUserMenu ? 'rgba(15, 23, 42, 0.05)' : 'transparent',
+                transition: 'background 0.15s ease',
+              }}
+              title="User Account & Quick Settings"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setShowUserMenu((prev) => !prev);
+                }
+              }}
+            >
               <div
                 style={{
                   width: '38px',
                   height: '38px',
                   borderRadius: '10px',
-                  background: 'linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%)',
+                  background: 'linear-gradient(135deg, #0284c7 0%, #1e3a8a 100%)',
                   color: 'white',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontWeight: 700,
                   fontSize: '0.88rem',
-                  boxShadow: '0 2px 8px rgba(37, 99, 235, 0.3)',
+                  boxShadow: '0 2px 8px rgba(2, 132, 199, 0.25)',
                   flexShrink: 0,
+                  overflow: 'hidden',
                 }}
               >
-                {user.name ? user.name.split(' ').map((n: string) => n[0]).slice(0, 2).join('') : <User size={18} />}
+                {user.avatarUrl ? (
+                  <img
+                    src={user.avatarUrl.startsWith('http') ? user.avatarUrl : `http://localhost:5000${user.avatarUrl}`}
+                    alt={user.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  user.name ? user.name.split(' ').map((n: string) => n[0]).slice(0, 2).join('') : <User size={18} />
+                )}
               </div>
-              <div style={{ textAlign: 'left' }}>
+              <div style={{ textAlign: 'left', display: 'flex', flexDirection: 'column' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                   <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-main)', lineHeight: 1.2 }}>
                     {user.name}
@@ -303,20 +361,180 @@ export const Navbar: React.FC<{ onNavigate?: (tab: string) => void }> = ({ onNav
                     {user.role}
                   </span>
                 </div>
-                <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                  {user.patient?.healthId || user.doctor?.specialty || user.email}
+                <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px', fontFamily: 'monospace' }}>
+                  {user.patient?.healthId || user.doctor?.licenseNumber || user.email}
                 </div>
               </div>
+              <ChevronDown size={14} color="var(--text-muted)" style={{ transform: showUserMenu ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }} />
             </div>
 
-            <button
-              onClick={logout}
-              className="btn btn-outline"
-              style={{ padding: '0.45rem 0.65rem' }}
-              title="Sign Out"
-            >
-              <LogOut size={16} />
-            </button>
+            {/* Polished Dropdown Menu */}
+            {showUserMenu && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 8px)',
+                  right: 0,
+                  width: '240px',
+                  background: 'white',
+                  borderRadius: '14px',
+                  boxShadow: '0 10px 30px rgba(15, 23, 42, 0.15)',
+                  border: '1px solid var(--border-light)',
+                  zIndex: 60,
+                  overflow: 'hidden',
+                  padding: '0.4rem',
+                  animation: 'fadeIn 0.15s ease-out',
+                }}
+              >
+                <div style={{ padding: '0.6rem 0.75rem', borderBottom: '1px solid #f1f5f9', marginBottom: '0.3rem' }}>
+                  <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Signed in as
+                  </div>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {user.email}
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setShowUserMenu(false);
+                    onNavigate && onNavigate('profile');
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '0.55rem 0.75rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.6rem',
+                    background: 'transparent',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '0.84rem',
+                    fontWeight: 600,
+                    color: '#334155',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = '#f8fafc')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <User size={15} color="#0284c7" />
+                  <span>Profile & Settings</span>
+                </button>
+
+                {user.role === 'PATIENT' && (
+                  <button
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      onNavigate && onNavigate('card');
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '0.55rem 0.75rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.6rem',
+                      background: 'transparent',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '0.84rem',
+                      fontWeight: 600,
+                      color: '#334155',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = '#f8fafc')}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    <CreditCard size={15} color="#0284c7" />
+                    <span>Smart Health Card</span>
+                  </button>
+                )}
+
+                <button
+                  onClick={() => {
+                    setShowUserMenu(false);
+                    handleOpenNotifications();
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '0.55rem 0.75rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.6rem',
+                    background: 'transparent',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '0.84rem',
+                    fontWeight: 600,
+                    color: '#334155',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = '#f8fafc')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <Bell size={15} color="#0284c7" />
+                  <span>Notifications</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setShowUserMenu(false);
+                    onNavigate && onNavigate('profile');
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '0.55rem 0.75rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.6rem',
+                    background: 'transparent',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '0.84rem',
+                    fontWeight: 600,
+                    color: '#334155',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = '#f8fafc')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <ShieldCheck size={15} color="#0284c7" />
+                  <span>Security & Privacy</span>
+                </button>
+
+                <div style={{ borderTop: '1px solid #f1f5f9', margin: '0.3rem 0' }} />
+
+                <button
+                  onClick={() => {
+                    setShowUserMenu(false);
+                    logout();
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '0.55rem 0.75rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.6rem',
+                    background: 'transparent',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '0.84rem',
+                    fontWeight: 600,
+                    color: '#ef4444',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = '#fef2f2')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <LogOut size={15} color="#ef4444" />
+                  <span>Sign Out</span>
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

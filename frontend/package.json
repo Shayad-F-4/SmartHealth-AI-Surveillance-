@@ -7,10 +7,15 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "type-check": "tsc --noEmit",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@react-three/drei": "^10.7.9",
+    "@react-three/fiber": "^9.8.1",
     "@types/leaflet": "^1.9.22",
+    "@types/three": "^0.186.0",
     "axios": "^1.20.0",
     "chart.js": "^4.5.1",
     "leaflet": "^1.9.4",
@@ -18,7 +23,8 @@
     "qrcode.react": "^4.2.0",
     "react": "^19.2.8",
     "react-chartjs-2": "^5.3.1",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "three": "^0.186.1"
   },
   "devDependencies": {
     "@types/node": "^24.13.3",
@@ -26,6 +32,7 @@
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.1.0",
     "oxlint": "^1.79.0",
+    "terser": "^5.51.2",
     "typescript": "~6.0.2",
     "vite": "^8.2.2"
   }

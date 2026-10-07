@@ -25,6 +25,9 @@ import {
   Stethoscope,
   Building2,
   HeartPulse,
+  MessageSquare,
+  UserCheck,
+  CheckCircle2,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -66,7 +69,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
 
       <nav className="sidebar-nav">
         {/* =================================================================
-            1. PATIENT NAVIGATION
+            1. PATIENT NAVIGATION (SIMPLIFIED & CLEAN)
             ================================================================= */}
         {role === 'PATIENT' && (
           <>
@@ -78,41 +81,59 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
               <Activity size={18} /> Overview
             </div>
 
-            <div className={`nav-item ${currentTab === 'card' ? 'active' : ''}`} onClick={() => onSelectTab('card')}>
-              <CreditCard size={18} /> Smart Health Card
-            </div>
-
-            <div className={`nav-item ${currentTab === 'records' || currentTab === 'timeline' || currentTab === 'episodes' ? 'active' : ''}`} onClick={() => onSelectTab('records')}>
+            <div className={`nav-item ${['records', 'timeline', 'episodes', 'prescriptions', 'labs'].includes(currentTab) ? 'active' : ''}`} onClick={() => onSelectTab('records')}>
               <FileText size={18} /> Medical Records
             </div>
 
-            <div className={`nav-item ${currentTab === 'trends' ? 'active' : ''}`} onClick={() => onSelectTab('trends')}>
-              <TrendingUp size={18} /> Health Trends
+            <div className={`nav-item ${['health-insights', 'trends', 'ai-risk'].includes(currentTab) ? 'active' : ''}`} onClick={() => onSelectTab('health-insights')}>
+              <TrendingUp size={18} /> Health Insights
             </div>
 
-            <div className={`nav-item ${currentTab === 'ai-risk' ? 'active' : ''}`} onClick={() => onSelectTab('ai-risk')}>
-              <Brain size={18} /> AI Health Risk
+            <div className={`nav-item ${currentTab === 'ai-assistant' ? 'active' : ''}`} onClick={() => onSelectTab('ai-assistant')}>
+              <MessageSquare size={18} /> AI Assistant
             </div>
 
             <div className={`nav-item ${currentTab === 'family' ? 'active' : ''}`} onClick={() => onSelectTab('family')}>
               <GitFork size={18} /> Family Health
             </div>
 
-            <div className={`nav-item ${currentTab === 'prescriptions' ? 'active' : ''}`} onClick={() => onSelectTab('prescriptions')}>
-              <Pill size={18} /> Prescriptions
-            </div>
-
-            <div className={`nav-item ${currentTab === 'labs' ? 'active' : ''}`} onClick={() => onSelectTab('labs')}>
-              <TestTube size={18} /> Lab Reports
-            </div>
-
             <div className={`nav-item ${currentTab === 'referrals' ? 'active' : ''}`} onClick={() => onSelectTab('referrals')}>
-              <ShieldCheck size={18} /> Specialist Referrals
+              <ShieldCheck size={18} /> Referrals
             </div>
 
             <div className={`nav-item ${currentTab === 'surveillance' ? 'active' : ''}`} onClick={() => onSelectTab('surveillance')}>
               <Eye size={18} /> Disease Surveillance
             </div>
+
+            <div className={`nav-item ${currentTab === 'profile' ? 'active' : ''}`} onClick={() => onSelectTab('profile')}>
+              <UserCheck size={18} /> Profile & Settings
+            </div>
+
+            {/* Smart Health ID - Compact Accessible Profile Badge */}
+            {user.patient?.healthId && (
+              <div 
+                onClick={() => onSelectTab('card')}
+                style={{
+                  margin: '1.25rem 0.5rem 0.5rem',
+                  padding: '0.65rem 0.75rem',
+                  background: currentTab === 'card' ? '#e0f2fe' : '#f8fafc',
+                  border: `1px solid ${currentTab === 'card' ? '#0284c7' : '#e2e8f0'}`,
+                  borderRadius: 10,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  transition: 'all 0.15s ease',
+                }}
+                title="View Smart Health Card"
+              >
+                <div>
+                  <div style={{ fontSize: '0.68rem', color: '#0369a1', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Smart Health ID</div>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0f172a', fontFamily: 'monospace' }}>{user.patient.healthId}</div>
+                </div>
+                <CreditCard size={17} color="#0284c7" />
+              </div>
+            )}
           </>
         )}
 
@@ -140,6 +161,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
             <div className={`nav-item ${currentTab === 'surveillance-map' ? 'active' : ''}`} onClick={() => onSelectTab('surveillance-map')}>
               <MapPin size={18} /> Disease Map
             </div>
+
+            <div className={`nav-item ${currentTab === 'profile' ? 'active' : ''}`} onClick={() => onSelectTab('profile')}>
+              <UserCheck size={18} /> Profile & Settings
+            </div>
           </>
         )}
 
@@ -154,6 +179,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
 
             <div className={`nav-item ${currentTab === 'admin-dashboard' ? 'active' : ''}`} onClick={() => onSelectTab('admin-dashboard')}>
               <Building2 size={18} /> Dashboard
+            </div>
+
+            <div className={`nav-item ${currentTab === 'profile' ? 'active' : ''}`} onClick={() => onSelectTab('profile')}>
+              <UserCheck size={18} /> Profile & Settings
             </div>
 
             {/* Disease Surveillance Expandable Group */}
@@ -237,6 +266,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
 
             <div className={`nav-item ${currentTab === 'audit-logs' ? 'active' : ''}`} onClick={() => onSelectTab('audit-logs')}>
               <History size={18} /> Audit Logs
+            </div>
+
+            <div className={`nav-item ${currentTab === 'verification-center' ? 'active' : ''}`} onClick={() => onSelectTab('verification-center')}>
+              <CheckCircle2 size={18} /> Verification Center
             </div>
           </>
         )}

@@ -134,6 +134,7 @@ def predict_patient_risk(req: RiskPredictionRequest):
     if req.age >= 60:
         factors.append(f"Elevated age bracket ({req.age:.0f} yrs)")
 
+    feature_importances = {}
     if model_a is not None:
         X = pd.DataFrame([{
             'age': req.age,
@@ -155,17 +156,39 @@ def predict_patient_risk(req: RiskPredictionRequest):
             "moderate": round(float(probas[1]), 3) if len(probas) > 1 else 0.0,
             "high": round(float(probas[2]), 3) if len(probas) > 2 else 0.0
         }
+        if hasattr(model_a, "feature_importances_") and hasattr(model_a, "feature_names_in_"):
+            for fname, imp in zip(model_a.feature_names_in_, model_a.feature_importances_):
+                feature_importances[str(fname)] = round(float(imp), 4)
+        elif hasattr(model_a, "feature_importances_"):
+            cols = ['age', 'bmi', 'systolic_bp', 'diastolic_bp', 'fasting_glucose', 'family_history_flag', 'chronic_conditions_count']
+            for fname, imp in zip(cols, model_a.feature_importances_):
+                feature_importances[fname] = round(float(imp), 4)
     else:
         # Heuristic fallback if model not loaded
         raw_score = min(100.0, len(factors) * 18.0 + (req.age * 0.2))
         risk_level = "HIGH" if raw_score >= 65 else ("MODERATE" if raw_score >= 35 else "LOW")
         risk_score = raw_score
         prob_dict = {"low": 0.33, "moderate": 0.33, "high": 0.33}
+        feature_importances = {
+            "fasting_glucose": 0.25,
+            "systolic_bp": 0.22,
+            "bmi": 0.18,
+            "family_history_flag": 0.15,
+            "chronic_conditions_count": 0.10,
+            "age": 0.06,
+            "diastolic_bp": 0.04
+        }
 
     return {
         "risk_level": risk_level,
         "risk_score": round(min(100.0, max(5.0, risk_score)), 1),
         "probabilities": prob_dict,
+        "feature_importances": feature_importances,
+        "model_metadata": {
+            "model": "RandomForestClassifier",
+            "version": "1.0.0",
+            "loaded_in_memory": model_a is not None
+        },
         "contributing_factors": factors if factors else ["No major high-risk indicators detected in current vitals"],
         "recommendation": (
             "Immediate comprehensive clinical evaluation and monitoring advised." if risk_level == "HIGH"

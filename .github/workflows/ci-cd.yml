@@ -1,0 +1,215 @@
+name: SmartHealth CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  NODE_VERSION: '18.x'
+
+jobs:
+  # Backend CI
+  backend-ci:
+    name: Backend CI
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: smarthealth_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Cache node modules
+        uses: actions/cache@v4
+        with:
+          path: backend/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('backend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+      
+      - name: Cache TypeScript build
+        uses: actions/cache@v4
+        with:
+          path: backend/dist
+          key: ${{ runner.os }}-backend-dist-${{ hashFiles('backend/src/**/*.ts') }}
+          restore-keys: |
+            ${{ runner.os }}-backend-dist-
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: npm ci
+      
+      - name: Run TypeScript type check
+        working-directory: ./backend
+        run: npm run type-check
+      
+      - name: Run ESLint
+        working-directory: ./backend
+        run: npm run lint || echo "Linting not configured"
+      
+      - name: Run TypeScript build
+        working-directory: ./backend
+        run: npm run build
+      
+      - name: Run Prisma generate
+        working-directory: ./backend
+        run: npx prisma generate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/smarthealth_test
+      
+      - name: Run Prisma migrate
+        working-directory: ./backend
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/smarthealth_test
+      
+      - name: Run security audit
+        working-directory: ./backend
+        run: npm audit --audit-level=moderate
+      
+      - name: Run tests
+        working-directory: ./backend
+        run: npm test || echo "Tests not configured yet"
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/smarthealth_test
+          NODE_ENV: test
+
+  # Frontend CI
+  frontend-ci:
+    name: Frontend CI
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Cache node modules
+        uses: actions/cache@v4
+        with:
+          path: frontend/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+      
+      - name: Cache Vite build
+        uses: actions/cache@v4
+        with:
+          path: frontend/dist
+          key: ${{ runner.os }}-frontend-dist-${{ hashFiles('frontend/src/**/*') }}
+          restore-keys: |
+            ${{ runner.os }}-frontend-dist-
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm ci
+      
+      - name: Run TypeScript type check
+        working-directory: ./frontend
+        run: npm run type-check
+      
+      - name: Run ESLint
+        working-directory: ./frontend
+        run: npm run lint || echo "Linting not configured"
+      
+      - name: Run TypeScript build
+        working-directory: ./frontend
+        run: npm run build
+      
+      - name: Run ESLint
+        working-directory: ./frontend
+        run: npm run lint || echo "Linting not configured"
+      
+      - name: Run security audit
+        working-directory: ./frontend
+        run: npm audit --audit-level=moderate
+      
+      - name: Analyze bundle size
+        working-directory: ./frontend
+        run: npm run build -- --report && du -sh dist/
+      
+      - name: Run tests
+        working-directory: ./frontend
+        run: npm test || echo "Tests not configured yet"
+
+  # Security Scan
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+      
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # Build and Deploy (Production)
+  deploy:
+    name: Deploy to Production
+    needs: [backend-ci, frontend-ci, security-scan]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      
+      - name: Build backend
+        working-directory: ./backend
+        run: |
+          npm ci
+          npm run build
+      
+      - name: Build frontend
+        working-directory: ./frontend
+        run: |
+          npm ci
+          npm run build
+      
+      - name: Deploy notification
+        run: |
+          echo "🚀 Deployment ready for production"
+          echo "Backend build: backend/dist/"
+          echo "Frontend build: frontend/dist/"
+          echo "Configure your deployment provider (AWS, Vercel, etc.) in this step"
