@@ -172,12 +172,17 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onEditClick,
       {/* Top Healthcare Cover Banner */}
       <div
         style={{
-          height: '130px',
+          height: '160px',
           background: bannerBackground,
           position: 'relative',
           display: 'flex',
-          alignItems: 'flex-end',
-          padding: '1rem 2rem',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          padding: '1rem 1.5rem',
+          borderTopLeftRadius: 20,
+          borderTopRightRadius: 20,
+          overflow: 'hidden',
+          zIndex: 1,
         }}
       >
         {/* Subtle grid pattern overlay */}
@@ -190,33 +195,31 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onEditClick,
               'radial-gradient(#ffffff 1px, transparent 1px), radial-gradient(#ffffff 1px, transparent 1px)',
             backgroundSize: '20px 20px',
             backgroundPosition: '0 0, 10px 10px',
+            pointerEvents: 'none',
           }}
         />
 
-        {/* Change Banner Trigger */}
+        {/* Change Banner Trigger (Top-Left inside Banner) */}
         <label
           title="Change profile cover banner"
           style={{
-            position: 'absolute',
-            bottom: '12px',
-            left: '16px',
             background: 'rgba(15, 23, 42, 0.65)',
             backdropFilter: 'blur(8px)',
             border: '1px solid rgba(255, 255, 255, 0.3)',
             borderRadius: '8px',
-            padding: '0.35rem 0.75rem',
+            padding: '0.4rem 0.8rem',
             color: 'white',
-            fontSize: '0.75rem',
+            fontSize: '0.78rem',
             fontWeight: 700,
             cursor: 'pointer',
             display: 'inline-flex',
             alignItems: 'center',
-            gap: '0.35rem',
-            zIndex: 5,
+            gap: '0.4rem',
+            zIndex: 4,
             boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
           }}
         >
-          <Camera size={13} /> Change Cover
+          <Camera size={14} /> Change Cover
           <input type="file" accept="image/*" onChange={handleBannerUpload} style={{ display: 'none' }} />
         </label>
 
@@ -225,9 +228,6 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onEditClick,
           <button
             onClick={onViewCardClick}
             style={{
-              position: 'absolute',
-              top: '16px',
-              right: '16px',
               background: 'rgba(255, 255, 255, 0.2)',
               backdropFilter: 'blur(10px)',
               border: '1px solid rgba(255, 255, 255, 0.4)',
@@ -240,7 +240,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onEditClick,
               display: 'inline-flex',
               alignItems: 'center',
               gap: '0.4rem',
-              zIndex: 5,
+              zIndex: 4,
             }}
           >
             <CreditCard size={15} /> View Smart Health Card
@@ -248,27 +248,27 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onEditClick,
         )}
       </div>
 
-      {/* Main Profile Info Row (Overlapping Banner) */}
+      {/* Main Profile Info Row (Clean 3-Column Layout below Banner) */}
       <div
         style={{
-          padding: '0 2rem 1.25rem 2rem',
+          padding: '0 1.5rem 1.5rem 1.5rem',
           display: 'flex',
+          alignItems: 'flex-start',
           justifyContent: 'space-between',
-          alignItems: 'center',
           flexWrap: 'wrap',
-          gap: '1rem',
-          marginTop: '-48px',
+          gap: '1.25rem',
           position: 'relative',
-          zIndex: 2,
+          zIndex: 4,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
-          {/* Avatar with optional photo upload & fallback initials */}
-          <div style={{ position: 'relative' }}>
+        {/* Left Column: Avatar & User Text Details */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1.25rem', flexWrap: 'wrap', flex: 1, minWidth: '280px' }}>
+          {/* Avatar Wrapper (Only Avatar overlaps the bottom edge of banner) */}
+          <div style={{ position: 'relative', marginTop: '-50px', zIndex: 5, flexShrink: 0 }}>
             <div
               style={{
-                width: 100,
-                height: 100,
+                width: 104,
+                height: 104,
                 borderRadius: '50%',
                 border: '4px solid #ffffff',
                 background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)',
@@ -278,7 +278,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onEditClick,
                 justifyContent: 'center',
                 fontSize: '2.2rem',
                 fontWeight: 800,
-                boxShadow: '0 6px 16px rgba(15, 23, 42, 0.15)',
+                boxShadow: '0 6px 18px rgba(15, 23, 42, 0.12)',
                 overflow: 'hidden',
                 position: 'relative',
               }}
@@ -300,12 +300,13 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onEditClick,
                   style={{
                     position: 'absolute',
                     inset: 0,
-                    background: 'rgba(15, 23, 42, 0.6)',
+                    background: 'rgba(15, 23, 42, 0.65)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontSize: '0.75rem',
                     color: 'white',
+                    fontWeight: 700,
                   }}
                 >
                   Uploading...
@@ -313,15 +314,15 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onEditClick,
               )}
             </div>
 
-            {/* Photo Upload Trigger */}
+            {/* Photo Upload Camera Trigger */}
             <label
               title="Upload profile photo"
               style={{
                 position: 'absolute',
-                bottom: 2,
-                right: 2,
-                width: 30,
-                height: 30,
+                bottom: 4,
+                right: 4,
+                width: 32,
+                height: 32,
                 borderRadius: '50%',
                 background: '#0284c7',
                 color: 'white',
@@ -329,18 +330,19 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onEditClick,
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
-                border: '2px solid white',
-                boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                border: '2px solid #ffffff',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                zIndex: 6,
               }}
             >
-              <Camera size={14} />
+              <Camera size={15} />
               <input type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: 'none' }} />
             </label>
           </div>
 
           {/* User Text Details */}
-          <div style={{ marginBottom: '0.25rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+          <div style={{ paddingTop: '0.75rem', flex: 1, minWidth: '220px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
               <h1 style={{ fontSize: '1.45rem', fontWeight: 800, color: '#0f172a', margin: 0, letterSpacing: '-0.02em', lineHeight: 1.2 }}>
                 {name}
               </h1>
@@ -348,7 +350,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onEditClick,
                 style={{
                   fontSize: '0.72rem',
                   fontWeight: 800,
-                  padding: '0.2rem 0.6rem',
+                  padding: '0.2rem 0.65rem',
                   borderRadius: 999,
                   background: isPatient ? '#e0f2fe' : isDoctor ? '#faf5ff' : '#f3e8ff',
                   color: isPatient ? '#0369a1' : isDoctor ? '#6b21a8' : '#7e22ce',
@@ -359,7 +361,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onEditClick,
               </span>
             </div>
 
-            <div style={{ fontSize: '0.82rem', color: '#64748b', fontWeight: 600, marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+            <div style={{ fontSize: '0.84rem', color: '#64748b', fontWeight: 600, marginTop: '0.45rem', display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
               <span>ID: <strong style={{ color: '#0f172a', fontFamily: 'monospace' }}>{healthId}</strong></span>
 
               {isPatient && (
@@ -368,7 +370,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onEditClick,
                   <span>&bull; {gender}</span>
                   <span>&bull; Blood: <strong style={{ color: '#dc2626' }}>{bloodGroup}</strong></span>
                   <span style={{ color: '#16a34a', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
-                    <CheckCircle2 size={13} /> Active Patient
+                    <CheckCircle2 size={14} /> Active Patient
                   </span>
                 </>
               )}
@@ -379,15 +381,15 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onEditClick,
                   <span>&bull; {user?.doctor?.qualification || 'MBBS, MD'}</span>
                   {verificationStatus === 'VERIFIED' ? (
                     <span style={{ color: '#16a34a', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
-                      <ShieldCheck size={13} /> Verified Practitioner
+                      <ShieldCheck size={14} /> Verified Practitioner
                     </span>
                   ) : verificationStatus === 'ADMIN_REVIEW' || verificationStatus === 'AI_REVIEW' ? (
                     <span style={{ color: '#f59e0b', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
-                      <Clock size={13} /> Verification Pending
+                      <Clock size={14} /> Verification Pending
                     </span>
                   ) : (
                     <span style={{ color: '#64748b', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
-                      <Clock size={13} /> Unverified
+                      <Clock size={14} /> Unverified
                     </span>
                   )}
                 </>
@@ -397,7 +399,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onEditClick,
                 <>
                   <span>&bull; IT &amp; System Administration</span>
                   <span style={{ color: '#7c3aed', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
-                    <ShieldCheck size={13} /> Full Access
+                    <ShieldCheck size={14} /> Full Access
                   </span>
                 </>
               )}
@@ -405,26 +407,29 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onEditClick,
           </div>
         </div>
 
-        {/* Edit Profile Trigger */}
-        <button
-          onClick={onEditClick}
-          style={{
-            padding: '0.55rem 1.1rem',
-            background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)',
-            color: 'white',
-            border: 'none',
-            borderRadius: 10,
-            fontSize: '0.85rem',
-            fontWeight: 700,
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.4rem',
-            boxShadow: '0 4px 12px rgba(2, 132, 199, 0.25)',
-          }}
-        >
-          <Edit3 size={15} /> Edit Profile
-        </button>
+        {/* Right Column: Edit Profile Action */}
+        <div style={{ paddingTop: '0.75rem' }}>
+          <button
+            onClick={onEditClick}
+            style={{
+              padding: '0.55rem 1.15rem',
+              background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)',
+              color: 'white',
+              border: 'none',
+              borderRadius: 10,
+              fontSize: '0.85rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              boxShadow: '0 4px 12px rgba(2, 132, 199, 0.25)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <Edit3 size={15} /> Edit Profile
+          </button>
+        </div>
       </div>
     </div>
   );
