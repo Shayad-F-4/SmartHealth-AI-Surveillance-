@@ -439,7 +439,7 @@ export const PatientDashboard: React.FC<{ onNavigate: (tab: string) => void }> =
                 }}
               />
             ) : (
-              patientName[0]
+              fullName.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase() || 'RV'
             )}
           </div>
 

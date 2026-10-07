@@ -55,16 +55,15 @@ Top-Right User Profile & Dropdown Menu:
     5. Sign Out (Executes AuthContext session invalidation)
   - Accessibility & UX: Closes automatically on outside click and Keyboard Escape key.
 
-Avatar & Profile Image Persistence Pipeline:
-  - Backend: Added `avatarUrl` field to `User` Prisma model and express static directory `/uploads/avatars`.
-  - API: Endpoint `POST /api/auth/avatar` validates (PNG/JPG/WEBP, 5MB limit), writes file to disk, updates PostgreSQL `User.avatarUrl`, and returns updated profile payload.
-  - Frontend: `ProfileHeader` uploads via `Multipart/form-data`, triggers `AuthContext.refreshUser()`, and synchronously updates the Navbar avatar, User Dropdown, and Profile Hero with dynamic initials fallback (`onError`).
-  - Persistence: Avatar survives full page refresh, navigation, and re-authentication sessions.
+Avatar & Profile Banner Image Persistence Pipeline:
+  - Backend: Added `avatarUrl` and `bannerUrl` fields to PostgreSQL `User` Prisma model and static upload directories `/uploads/avatars` and `/uploads/banners`.
+  - API: Endpoints `POST /api/auth/avatar` and `POST /api/auth/banner` validate files (PNG/JPG/WEBP, 5MB limit), write files to disk, update PostgreSQL `User.avatarUrl`/`bannerUrl`, and return updated profile payloads.
+  - Frontend: `ProfileHeader` uploads via `Multipart/form-data`, triggers `AuthContext.refreshUser()`, and synchronously updates Navbar avatar, Profile Hero banner, User Dropdown, and Patient Overview welcome card with dynamic initials fallback (e.g. `RV`).
+  - Persistence: Avatar and banner images survive full page refresh, navigation, and re-authentication sessions.
 
-Identity Verification & Multi-Factor Authentication (MFA):
-  - Patient Identity Verification: AI-assisted pre-check with high-confidence automated verification rule and manual admin review fallback.
-  - Doctor Credential Verification: Professional credentials require strict Admin approval in the Verification Center.
-  - MFA Engine: TOTP setup (QR code & secret generation) supported for all roles (PATIENT, DOCTOR, ADMIN) with backup code generation, password confirmation on disable, and active session tracking/revocation.
+Landing Page & Identity Architecture:
+  - Minimal, fast-loading landing page directing users directly to authentication with 1-click quick demo buttons and auto-redirect for authenticated users.
+  - Patient Overview uses real database health indicators with synchronized user avatar image or uppercase initials (`RV`).
 ```
 
 
