@@ -355,18 +355,30 @@ if (!fs.existsSync(AVATAR_DIR)) {
 }
 
 const avatarUpload = multer({
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  limits: { fileSize: 15 * 1024 * 1024 }, // 15MB limit
   fileFilter: (_req, file, cb) => {
-    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
-    if (allowedTypes.includes(file.mimetype)) {
+    if (file.mimetype.startsWith('image/')) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid image type. Only PNG, JPG, JPEG, and WEBP allowed.'));
+      cb(new Error('Invalid image type. Only standard image formats (PNG, JPG, WEBP, etc.) are allowed.'));
     }
   },
 });
 
-export const avatarUploadMiddleware = avatarUpload.single('avatar');
+export const avatarUploadMiddleware = (req: any, res: any, next: any) => {
+  avatarUpload.single('avatar')(req, res, (err: any) => {
+    if (err) {
+      if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ error: 'Profile photo size exceeds 15MB limit. Please select a smaller file.' });
+        }
+        return res.status(400).json({ error: err.message });
+      }
+      return res.status(400).json({ error: err.message || 'Avatar upload error.' });
+    }
+    next();
+  });
+};
 
 export async function uploadAvatar(req: AuthRequest, res: Response) {
   try {
@@ -398,6 +410,7 @@ export async function uploadAvatar(req: AuthRequest, res: Response) {
     return res.json({
       message: 'Avatar uploaded successfully.',
       avatarUrl: updatedUser.avatarUrl,
+      bannerUrl: updatedUser.bannerUrl,
       user: {
         id: updatedUser.id,
         email: updatedUser.email,
@@ -405,6 +418,7 @@ export async function uploadAvatar(req: AuthRequest, res: Response) {
         role: updatedUser.role,
         phone: updatedUser.phone,
         avatarUrl: updatedUser.avatarUrl,
+        bannerUrl: updatedUser.bannerUrl,
         patient: updatedUser.patient ? {
           ...updatedUser.patient,
           verificationStatus: updatedUser.patient.verificationStatus,
@@ -431,18 +445,30 @@ if (!fs.existsSync(BANNER_DIR)) {
 }
 
 const bannerUpload = multer({
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  limits: { fileSize: 15 * 1024 * 1024 }, // 15MB limit for high-res LinkedIn banners
   fileFilter: (_req, file, cb) => {
-    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
-    if (allowedTypes.includes(file.mimetype)) {
+    if (file.mimetype.startsWith('image/')) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid image type. Only PNG, JPG, JPEG, and WEBP allowed.'));
+      cb(new Error('Invalid image type. Only standard image formats (PNG, JPG, WEBP, etc.) are allowed.'));
     }
   },
 });
 
-export const bannerUploadMiddleware = bannerUpload.single('banner');
+export const bannerUploadMiddleware = (req: any, res: any, next: any) => {
+  bannerUpload.single('banner')(req, res, (err: any) => {
+    if (err) {
+      if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ error: 'Banner image size exceeds 15MB limit. Please select a smaller file.' });
+        }
+        return res.status(400).json({ error: err.message });
+      }
+      return res.status(400).json({ error: err.message || 'Banner upload error.' });
+    }
+    next();
+  });
+};
 
 export async function uploadBanner(req: AuthRequest, res: Response) {
   try {

@@ -67,8 +67,8 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onEditClick,
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      setNotification({ type: 'error', text: 'File size exceeds 5MB limit.' });
+    if (file.size > 15 * 1024 * 1024) {
+      setNotification({ type: 'error', text: 'File size exceeds 15MB limit.' });
       setTimeout(() => setNotification(null), 4000);
       return;
     }
@@ -87,7 +87,8 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onEditClick,
       setNotification({ type: 'success', text: 'Profile picture updated successfully!' });
       setTimeout(() => setNotification(null), 4000);
     } catch (err: any) {
-      setNotification({ type: 'error', text: err.response?.data?.error || 'Failed to upload profile picture.' });
+      const errorMsg = err.response?.data?.error || err.response?.data?.message || err.message || 'Failed to upload profile picture.';
+      setNotification({ type: 'error', text: errorMsg });
       setTimeout(() => setNotification(null), 5000);
     } finally {
       setUploading(false);
@@ -98,8 +99,8 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onEditClick,
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      setNotification({ type: 'error', text: 'Banner image size exceeds 5MB limit.' });
+    if (file.size > 15 * 1024 * 1024) {
+      setNotification({ type: 'error', text: 'Banner image size exceeds 15MB limit.' });
       setTimeout(() => setNotification(null), 4000);
       return;
     }
@@ -118,7 +119,8 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onEditClick,
       setNotification({ type: 'success', text: 'Profile header banner updated successfully!' });
       setTimeout(() => setNotification(null), 4000);
     } catch (err: any) {
-      setNotification({ type: 'error', text: err.response?.data?.error || 'Failed to upload banner image.' });
+      const errorMsg = err.response?.data?.error || err.response?.data?.message || err.message || 'Failed to upload banner image.';
+      setNotification({ type: 'error', text: errorMsg });
       setTimeout(() => setNotification(null), 5000);
     } finally {
       setUploading(false);
