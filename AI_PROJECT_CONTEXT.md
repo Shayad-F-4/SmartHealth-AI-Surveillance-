@@ -192,7 +192,14 @@ c:\Users\userm\OneDrive\Desktop\MP\
 * `[x]` Public Emergency Health Profile (`/emergency/:healthId` — QR-scannable, sanitizes private notes)
 
 ### Patient Portal (Consolidated & Simplified)
-* `[x]` **Overview:** Intelligent, un-cluttered health summary ("What is important about my health right now?") featuring: Patient Profile Header, 3-4 Key Summary Cards (Overall Status, Active Condition, AI Risk %, Conditional Upcoming Appointment), Health Intelligence (animated Phase 3 RandomForest risk gauge & Phase 2 real-data SVG trend charts with hover tooltips and record links), Physiological Anomaly status, Key Vitals row, Important Recent Activity timeline stream, and Privacy-Safe Area Health Alert sync.
+* `[x]` **Overview:** Production EHR-grade clinical patient health overview structured cleanly into 7 sections:
+  * `1.` **Compact Welcome Header:** Patient welcome avatar greeting, PATIENT role badge, and quick Smart Health ID launcher button.
+  * `2.` **Key Health Summary (3 Primary Cards):** Overall Health Status (Stable/Watch/Action Needed with dynamic subtext), Active Condition (real active disease episode or chronic profile), and AI Risk Assessment (Low/Moderate/High % based on clinical features).
+  * `3.` **Health Intelligence Section:** AI Risk Spectrum Gauge (0–39% Low, 40–69% Moderate, 70–100% High with interactive "View Risk Factors" drawer) and Dynamic Health Trend SVG Chart (top available lab or BP metric with hover data tooltips and last updated date).
+  * `4.` **Important Health Alerts:** Contextual severity-badged alerts (INFO, LOW, MODERATE, HIGH, URGENT) for out-of-range labs, surveillance warnings, or active episodes; displays "You're all caught up" when no warnings exist.
+  * `5.` **Recent Health Activity:** Interactive timeline of recent clinical encounters, lab uploads, and prescriptions with status badges.
+  * `6.` **Current Medications & Upcoming Care:** 2-column active prescriptions summary and scheduled consultations.
+  * `7.` **Quick Health Actions:** 4 compact action launchers (View Medical Records, Health Insights, AI Assistant, Smart Health Card) without uncluttered action buttons.
 * `[x]` **Medical Records:** Central healthcare records archive:
   * `[x]` **All Records:** Unified view of lab reports, prescriptions, consultations, vaccinations, imaging, and discharge summaries with category filter chips and search.
   * `[x]` **+ Add Health Record:** Unified workflow supporting document upload (PDF/images with automated parameter extraction & persistence) and manual record entry.
