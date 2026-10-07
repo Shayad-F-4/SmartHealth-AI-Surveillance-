@@ -421,6 +421,10 @@ export async function uploadAvatar(req: AuthRequest, res: Response) {
     });
   } catch (err: any) {
     console.error('Error uploading avatar:', err);
+    return res.status(500).json({ error: err?.message || 'Failed to upload profile picture.' });
+  }
+}
+
 const BANNER_DIR = path.join(process.cwd(), 'uploads', 'banners');
 if (!fs.existsSync(BANNER_DIR)) {
   fs.mkdirSync(BANNER_DIR, { recursive: true });
