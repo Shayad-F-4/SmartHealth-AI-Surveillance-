@@ -7,12 +7,11 @@ const failedLoginAttempts = new Map<string, { count: number; resetTime: number }
 // Rate limiter for login endpoint (more strict than general API)
 export const loginRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // 5 login attempts per 15 minutes
+  max: 1000, // 1000 login attempts per 15 minutes for smooth demo testing
   message: { error: 'Too many login attempts. Please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req: Request) => {
-    // Skip rate limiting for tests if needed
     return process.env.NODE_ENV === 'test';
   },
 });

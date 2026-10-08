@@ -1,6 +1,6 @@
 # AI_PROJECT_CONTEXT.md
 > **Single Source of Truth for AI Agents & Developers**
-> **Last Verified & Updated:** 2026-10-06 (Profile & Settings UX)
+> **Last Verified & Updated:** 2026-10-08 (End-to-End Doctor-Patient Appointment System)
 > *Note for AI Agents:* Read this file first before inspecting the entire repository. If any code in the repository conflicts with this file, the actual code is the ground truth—update this document accordingly.
 
 ---
@@ -207,6 +207,7 @@ c:\Users\userm\OneDrive\Desktop\MP\
   * `[x]` **Health Trends:** Longitudinal BP, Glucose, and Cholesterol time-series tracking with reference interval indicators.
   * `[x]` **AI Health Risk:** Model A Random Forest risk level and calibrated score, top contributing factors, and evidence grounding without technical jargon.
 * `[x]` **AI Assistant:** Ultra-clean 3D floating healthcare robot ("HealRobo") loading `/models/health-assistant.glb` via `@react-three/fiber` and `@react-three/drei`. Displays only the clean title `HealRobo` above a 100% transparent 3D canvas with soft medical glow and zero surrounding boxes/panels. Supports smooth viewport dragging with position persistence (`localStorage`), OrbitControls 3D rotation/zoom, single-click to focus chat input, double-click to minimize/restore, and dynamic AI states (`idle`, `thinking`, `speaking`).
+* `[x]` **Appointments:** Complete patient booking flow — interactive doctor directory search, doctor slot selector, appointment reason/symptoms intake, status tracking (PENDING, APPROVED, REJECTED, CANCELLED, COMPLETED), and virtual video consultation link launcher.
 * `[x]` **Family Health:** Hereditary health pedigree tree.
 * `[x]` **Referrals:** Specialist referral tracking and status.
 * `[x]` **Disease Surveillance:** Privacy-conscious nearby health signals (25 km radius aggregation, zero PII/GPS disclosure).
@@ -214,6 +215,7 @@ c:\Users\userm\OneDrive\Desktop\MP\
 
 ### Doctor Portal
 * `[x]` Doctor Dashboard (Daily shift stats, recently attended patients)
+* `[x]` **Appointments Approval Center:** Doctor queue for managing patient appointment requests — filter by status, approve requests with custom virtual meeting links (Google Meet/Zoom), reject requests with reasons, and mark completed consultations.
 * `[x]` Unified Patients Workflow:
   * `[x]` Search by Health ID, name, or phone
   * `[x]` Optical QR Reader Terminal simulator

@@ -28,11 +28,21 @@ import * as passwordResetCtrl from '../controllers/passwordResetController';
 import * as securityCtrl from '../controllers/securityController';
 import * as mfaCtrl from '../controllers/mfaController';
 import * as sessionCtrl from '../controllers/sessionController';
+import * as appointmentCtrl from '../controllers/appointmentController';
 
 const router = Router();
 
 // --- Public Emergency Health Profile Route ---
 router.get('/emergency/:healthId', emergCtrl.getEmergencyProfile);
+
+// --- Appointment Booking & Approval Routes ---
+router.get('/appointments/doctors', authenticate, appointmentCtrl.getDoctors);
+router.get('/appointments/doctors/:doctorId/slots', authenticate, appointmentCtrl.getDoctorSlots);
+router.post('/appointments/book', authenticate, appointmentCtrl.bookAppointment);
+router.get('/appointments/my-appointments', authenticate, appointmentCtrl.getMyAppointmens);
+router.get('/appointments/doctor/requests', authenticate, authorize(['DOCTOR']), appointmentCtrl.getDoctorAppointmentRequests);
+router.put('/appointments/:id/status', authenticate, authorize(['DOCTOR']), appointmentCtrl.updateAppointmentStatus);
+router.post('/appointments/:id/cancel', authenticate, appointmentCtrl.cancelAppointment);
 
 // --- Auth Routes ---
 router.post('/auth/register', registerRateLimiter, authCtrl.register);

@@ -22,12 +22,14 @@ const AIRiskPage = lazy(() => import('./pages/patient/AIRiskPage').then(m => ({ 
 const HealthInsightsPage = lazy(() => import('./pages/patient/HealthInsightsPage').then(m => ({ default: m.HealthInsightsPage })));
 const AIAssistantPage = lazy(() => import('./pages/patient/AIAssistantPage').then(m => ({ default: m.AIAssistantPage })));
 const ReferralsPage = lazy(() => import('./pages/patient/ReferralsPage').then(m => ({ default: m.ReferralsPage })));
+const PatientAppointmentsPage = lazy(() => import('./pages/patient/PatientAppointmentsPage').then(m => ({ default: m.PatientAppointmentsPage })));
 const UserProfilePage = lazy(() => import('./pages/profile/UserProfilePage').then(m => ({ default: m.UserProfilePage })));
 
 // Doctor Pages
 const DoctorDashboard = lazy(() => import('./pages/doctor/DoctorDashboard').then(m => ({ default: m.DoctorDashboard })));
 const DoctorPatientsPage = lazy(() => import('./pages/doctor/DoctorPatientsPage').then(m => ({ default: m.DoctorPatientsPage })));
 const DoctorReferralsPage = lazy(() => import('./pages/doctor/DoctorReferralsPage').then(m => ({ default: m.DoctorReferralsPage })));
+const DoctorAppointmentsPage = lazy(() => import('./pages/doctor/DoctorAppointmentsPage').then(m => ({ default: m.DoctorAppointmentsPage })));
 const LeafletDiseaseMap = lazy(() => import('./components/LeafletDiseaseMap').then(m => ({ default: m.LeafletDiseaseMap })));
 
 // Admin Pages
@@ -239,6 +241,7 @@ const AppContent: React.FC = () => {
                 />
               )}
               {currentTab === 'referrals' && <ReferralsPage />}
+              {currentTab === 'appointments' && <PatientAppointmentsPage />}
               {currentTab === 'surveillance' && <SurveillancePage onNavigate={(t) => setCurrentTab(t)} />}
             </>
           )}
@@ -256,6 +259,7 @@ const AppContent: React.FC = () => {
                 />
               )}
               {currentTab === 'doctor-referrals' && <DoctorReferralsPage />}
+              {currentTab === 'doctor-appointments' && <DoctorAppointmentsPage />}
               {currentTab === 'surveillance-map' && <LeafletDiseaseMap />}
             </>
           )}

@@ -28,6 +28,7 @@ import {
   MessageSquare,
   UserCheck,
   CheckCircle2,
+  Calendar,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -83,6 +84,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
 
             <div className={`nav-item ${['records', 'timeline', 'episodes', 'prescriptions', 'labs'].includes(currentTab) ? 'active' : ''}`} onClick={() => onSelectTab('records')}>
               <FileText size={18} /> Medical Records
+            </div>
+
+            <div className={`nav-item ${currentTab === 'appointments' ? 'active' : ''}`} onClick={() => onSelectTab('appointments')}>
+              <Calendar size={18} /> Appointments
             </div>
 
             <div className={`nav-item ${['health-insights', 'trends', 'ai-risk'].includes(currentTab) ? 'active' : ''}`} onClick={() => onSelectTab('health-insights')}>
@@ -148,6 +153,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
 
             <div className={`nav-item ${currentTab === 'doctor-dashboard' ? 'active' : ''}`} onClick={() => onSelectTab('doctor-dashboard')}>
               <Activity size={18} /> Dashboard
+            </div>
+
+            <div className={`nav-item ${currentTab === 'doctor-appointments' ? 'active' : ''}`} onClick={() => onSelectTab('doctor-appointments')}>
+              <Calendar size={18} /> Appointments &amp; Requests
             </div>
 
             <div className={`nav-item ${currentTab === 'patients' || currentTab === 'patient-search' || currentTab === 'add-visit' ? 'active' : ''}`} onClick={() => onSelectTab('patients')}>

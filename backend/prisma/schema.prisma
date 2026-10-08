@@ -66,6 +66,7 @@ model Patient {
   labReports            LabReport[]
   familyMembers         FamilyMember[]
   referrals             Referral[]
+  appointments          Appointment[]
 
   @@index([healthId])
   @@index([district])
@@ -91,6 +92,8 @@ model Doctor {
   medicalRecords  MedicalRecord[]
   prescriptions   Prescription[]
   referralsMade   Referral[]
+  appointments    Appointment[]
+  doctorSlots     DoctorSlot[]
 
   @@index([licenseNumber])
   @@index([specialty])
@@ -551,6 +554,50 @@ model MFASetup {
   updatedAt         DateTime @updatedAt
 
   @@index([userId])
+}
+
+// Appointment Management System
+enum AppointmentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+  COMPLETED
+}
+
+model Appointment {
+  id               String            @id @default(uuid())
+  patientId        String
+  patient          Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId         String
+  doctor           Doctor            @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  appointmentDate  DateTime
+  startTime        String            // e.g. "10:30"
+  endTime          String            // e.g. "11:00"
+  type             String            @default("IN_PERSON") // IN_PERSON, VIRTUAL
+  reason           String?           // Chief complaint
+  status           AppointmentStatus @default(PENDING)
+  doctorNotes      String?           // Approval note or rejection reason
+  meetingLink      String?           // Optional tele-consultation link
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([appointmentDate, status])
+}
+
+model DoctorSlot {
+  id           String   @id @default(uuid())
+  doctorId     String
+  doctor       Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  dayOfWeek    String   // MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY
+  startTime    String   // "09:00"
+  endTime      String   // "17:00"
+  slotDuration Int      @default(30) // Minutes
+  isAvailable  Boolean  @default(true)
+
+  @@index([doctorId])
 }
 
 

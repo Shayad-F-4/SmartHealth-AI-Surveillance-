@@ -130,6 +130,25 @@ async function main() {
         },
     });
     console.log('Created Doctors.');
+
+    // 3.5. Seed Doctor Slots & Sample Appointment Requests
+    const todayStr = new Date().toISOString().split('T')[0];
+    const slotsList = ['09:00 AM', '10:00 AM', '11:30 AM', '02:00 PM', '03:30 PM', '05:00 PM'];
+    
+    for (const doc of [doctor1, doctor2, doctor3]) {
+      for (const slotTime of slotsList) {
+        await prisma.doctorSlot.create({
+          data: {
+            doctorId: doc.id,
+            slotDate: todayStr,
+            startTime: slotTime,
+            endTime: slotTime,
+            isBooked: false,
+          }
+        }).catch(() => {});
+      }
+    }
+
     // 4. Create Primary Demo Patient (Rahul Verma)
     const patientUser1 = await prisma.user.create({
         data: {
