@@ -321,37 +321,131 @@ const AppContent: React.FC = () => {
         </Suspense>
       </div>
 
-      {/* Mobile Bottom Bar Navigation */}
+      {/* Mobile Bottom Bar Navigation (Target Reference Specification: 5 Items per Role) */}
       <nav className="mobile-bottom-nav no-print">
         <div className="mobile-bottom-nav-items">
-          <button 
-            className={`mobile-nav-btn ${currentTab === getHomeTab() ? 'active' : ''}`}
-            onClick={() => setCurrentTab(getHomeTab())}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
-            Home
-          </button>
-          <button 
-            className={`mobile-nav-btn ${currentTab === getSecondaryTab() ? 'active' : ''}`}
-            onClick={() => setCurrentTab(getSecondaryTab())}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            {user?.role === 'ADMIN' ? 'Surveillance' : user?.role === 'DOCTOR' ? 'Patients' : 'Records'}
-          </button>
-          <button 
-            className={`mobile-nav-btn ${currentTab === 'appointments' || currentTab === 'doctor-appointments' ? 'active' : ''}`}
-            onClick={() => setCurrentTab(user?.role === 'DOCTOR' ? 'doctor-appointments' : 'appointments')}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            Appointments
-          </button>
-          <button 
-            className={`mobile-nav-btn ${currentTab === 'profile' ? 'active' : ''}`}
-            onClick={() => setCurrentTab('profile')}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            Profile
-          </button>
+          {/* Patient Role Navigation */}
+          {user?.role === 'PATIENT' && (
+            <>
+              <button 
+                className={`mobile-nav-btn ${currentTab === 'dashboard' ? 'active' : ''}`}
+                onClick={() => setCurrentTab('dashboard')}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                Home
+              </button>
+              <button 
+                className={`mobile-nav-btn ${['records', 'timeline', 'episodes', 'prescriptions', 'labs'].includes(currentTab) ? 'active' : ''}`}
+                onClick={() => setCurrentTab('records')}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Records
+              </button>
+              <button 
+                className={`mobile-nav-btn ${currentTab === 'appointments' ? 'active' : ''}`}
+                onClick={() => setCurrentTab('appointments')}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                Appts
+              </button>
+              <button 
+                className={`mobile-nav-btn ${currentTab === 'ai-assistant' ? 'active' : ''}`}
+                onClick={() => setCurrentTab('ai-assistant')}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2a10 10 0 1 0 10 10H12V2z"/><path d="M12 12L2.1 12"/></svg>
+                AI
+              </button>
+              <button 
+                className={`mobile-nav-btn ${currentTab === 'profile' ? 'active' : ''}`}
+                onClick={() => setCurrentTab('profile')}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                Profile
+              </button>
+            </>
+          )}
+
+          {/* Doctor Role Navigation */}
+          {user?.role === 'DOCTOR' && (
+            <>
+              <button 
+                className={`mobile-nav-btn ${currentTab === 'doctor-dashboard' ? 'active' : ''}`}
+                onClick={() => setCurrentTab('doctor-dashboard')}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                Dashboard
+              </button>
+              <button 
+                className={`mobile-nav-btn ${['patients', 'patient-search', 'add-visit'].includes(currentTab) ? 'active' : ''}`}
+                onClick={() => setCurrentTab('patients')}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                Patients
+              </button>
+              <button 
+                className={`mobile-nav-btn ${currentTab === 'doctor-appointments' ? 'active' : ''}`}
+                onClick={() => setCurrentTab('doctor-appointments')}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                Appts
+              </button>
+              <button 
+                className={`mobile-nav-btn ${currentTab === 'surveillance-map' ? 'active' : ''}`}
+                onClick={() => setCurrentTab('surveillance-map')}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+                Map
+              </button>
+              <button 
+                className={`mobile-nav-btn ${currentTab === 'profile' ? 'active' : ''}`}
+                onClick={() => setCurrentTab('profile')}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                Profile
+              </button>
+            </>
+          )}
+
+          {/* Admin Role Navigation */}
+          {user?.role === 'ADMIN' && (
+            <>
+              <button 
+                className={`mobile-nav-btn ${currentTab === 'admin-dashboard' ? 'active' : ''}`}
+                onClick={() => setCurrentTab('admin-dashboard')}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                Dashboard
+              </button>
+              <button 
+                className={`mobile-nav-btn ${['disease-surveillance-center', 'surveillance-overview'].includes(currentTab) ? 'active' : ''}`}
+                onClick={() => setCurrentTab('disease-surveillance-center')}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+                Surveillance
+              </button>
+              <button 
+                className={`mobile-nav-btn ${currentTab === 'verification-center' ? 'active' : ''}`}
+                onClick={() => setCurrentTab('verification-center')}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                Verify
+              </button>
+              <button 
+                className={`mobile-nav-btn ${currentTab === 'alerts' ? 'active' : ''}`}
+                onClick={() => setCurrentTab('alerts')}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                Alerts
+              </button>
+              <button 
+                className={`mobile-nav-btn ${currentTab === 'profile' ? 'active' : ''}`}
+                onClick={() => setCurrentTab('profile')}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                Profile
+              </button>
+            </>
+          )}
         </div>
       </nav>
     </div>
