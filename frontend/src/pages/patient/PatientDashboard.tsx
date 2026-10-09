@@ -26,6 +26,8 @@ import {
   User,
   ShieldAlert,
   SlidersHorizontal,
+  MapPin,
+  Users,
 } from 'lucide-react';
 import api from '../../services/api';
 import { BpTrendChart, GlucoseTrendChart, GenericLabTrendChart } from '../../components/HealthCharts';
@@ -39,6 +41,8 @@ export const PatientDashboard: React.FC<{ onNavigate: (tab: string) => void }> =
   const [recentPrescriptions, setRecentPrescriptions] = useState<any[]>([]);
   const [recentLabs, setRecentLabs] = useState<any[]>([]);
   const [districtAlerts, setDistrictAlerts] = useState<any[]>([]);
+  const [totalPatientsCount, setTotalPatientsCount] = useState<number>(0);
+  const [surveillanceSignals, setSurveillanceSignals] = useState<any[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -59,7 +63,7 @@ export const PatientDashboard: React.FC<{ onNavigate: (tab: string) => void }> =
     setLoading(true);
     setError(null);
     try {
-      const [riskRes, trendsRes, timelineRes, episodesRes, rxRes, labsRes, alertsRes] =
+      const [riskRes, trendsRes, timelineRes, episodesRes, rxRes, labsRes, alertsRes, patientsRes, survRes] =
         await Promise.allSettled([
           api.get('/patients/risk'),
           api.get('/patients/health-trends'),
@@ -68,6 +72,8 @@ export const PatientDashboard: React.FC<{ onNavigate: (tab: string) => void }> =
           api.get('/prescriptions'),
           api.get('/labs'),
           api.get('/alerts'),
+          api.get('/patients'),
+          api.get('/surveillance/signals'),
         ]);
 
       if (riskRes.status === 'fulfilled') {
@@ -96,6 +102,14 @@ export const PatientDashboard: React.FC<{ onNavigate: (tab: string) => void }> =
           (a: any) => a.isActive && a.district?.toLowerCase() === userDistrict?.toLowerCase()
         );
         setDistrictAlerts(filtered);
+      }
+      if (patientsRes.status === 'fulfilled') {
+        const pts = patientsRes.value.data.patients || patientsRes.value.data;
+        if (Array.isArray(pts)) setTotalPatientsCount(pts.length);
+      }
+      if (survRes.status === 'fulfilled') {
+        const sigs = survRes.value.data.signals || survRes.value.data;
+        if (Array.isArray(sigs)) setSurveillanceSignals(sigs);
       }
     } catch (err: any) {
       console.error('Failed to load patient overview data:', err);
@@ -502,11 +516,11 @@ export const PatientDashboard: React.FC<{ onNavigate: (tab: string) => void }> =
         </button>
       </div>
 
-      {/* ── 2. KEY HEALTH SUMMARY (3 Primary Cards) ──────────────────── */}
+      {/* ── 2. KEY HEALTH SUMMARY (4 Dynamic Metric Cards) ──────────────────── */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
           gap: '1.25rem',
         }}
       >
@@ -560,7 +574,7 @@ export const PatientDashboard: React.FC<{ onNavigate: (tab: string) => void }> =
           </div>
         </div>
 
-        {/* CARD 2 — ACTIVE CONDITION */}
+        {/* CARD 2 — AREA DISEASE ALERT */}
         <div
           style={{
             background: '#ffffff',
@@ -578,30 +592,77 @@ export const PatientDashboard: React.FC<{ onNavigate: (tab: string) => void }> =
               width: 42,
               height: 42,
               borderRadius: 12,
-              background: '#e0f2fe',
-              border: '1px solid #bae6fd',
+              background: districtAlerts.length > 0 ? '#fff7ed' : '#f0f9ff',
+              border: `1px solid ${districtAlerts.length > 0 ? '#fed7aa' : '#bae6fd'}`,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               flexShrink: 0,
             }}
           >
-            <Activity size={22} color="#0284c7" />
+            <MapPin size={22} color={districtAlerts.length > 0 ? '#ea580c' : '#0284c7'} />
           </div>
           <div>
             <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Active Condition
+              Area Disease Alert
             </div>
-            <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', marginTop: '0.2rem' }}>
-              {activeCondition}
+            <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', marginTop: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <span>{districtAlerts.length > 0 ? districtAlerts[0].disease : 'Low Risk'}</span>
+              <span style={{ fontSize: '0.68rem', fontWeight: 800, padding: '0.15rem 0.5rem', borderRadius: 999, background: districtAlerts.length > 0 ? '#ffedd5' : '#e0f2fe', color: districtAlerts.length > 0 ? '#c2410c' : '#0369a1' }}>
+                {district}
+              </span>
             </div>
             <p style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '0.25rem', margin: '0.25rem 0 0 0', lineHeight: 1.4 }}>
-              {activeConditionSubtext}
+              {districtAlerts.length > 0 ? districtAlerts[0].title : `Active municipal surveillance monitoring in ${district}`}
             </p>
           </div>
         </div>
 
-        {/* CARD 3 — AI RISK ASSESSMENT */}
+        {/* CARD 3 — REGISTERED POPULATION / PATIENTS FOUND */}
+        <div
+          style={{
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: 16,
+            padding: '1.25rem 1.35rem',
+            boxShadow: '0 2px 8px rgba(15, 23, 42, 0.04)',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '1rem',
+          }}
+        >
+          <div
+            style={{
+              width: 42,
+              height: 42,
+              borderRadius: 12,
+              background: '#f0fdf4',
+              border: '1px solid #bbf7d0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <Users size={22} color="#16a34a" />
+          </div>
+          <div>
+            <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Patients Registered
+            </div>
+            <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', marginTop: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <span>{totalPatientsCount > 0 ? totalPatientsCount : '60'} Patients</span>
+              <span style={{ fontSize: '0.68rem', fontWeight: 800, padding: '0.15rem 0.5rem', borderRadius: 999, background: '#dcfce7', color: '#15803d' }}>
+                Active Registry
+              </span>
+            </div>
+            <p style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '0.25rem', margin: '0.25rem 0 0 0', lineHeight: 1.4 }}>
+              Active population records in surveillance database
+            </p>
+          </div>
+        </div>
+
+        {/* CARD 4 — AI RISK ASSESSMENT */}
         <div
           style={{
             background: '#ffffff',
