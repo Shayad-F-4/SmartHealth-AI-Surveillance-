@@ -45,6 +45,7 @@ import api from './services/api';
 const AppContent: React.FC = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
   const [currentTab, setCurrentTab] = useState<string>('landing');
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [selectedEmergencyHealthId, setSelectedEmergencyHealthId] = useState<string>('SHC-2026-000001');
   const [consultationPatient, setConsultationPatient] = useState<any>(null);
 
@@ -163,14 +164,32 @@ const AppContent: React.FC = () => {
     );
   }
 
+  const getHomeTab = () => {
+    if (user?.role === 'ADMIN') return 'admin-dashboard';
+    if (user?.role === 'DOCTOR') return 'doctor-dashboard';
+    return 'dashboard';
+  };
+
+  const getSecondaryTab = () => {
+    if (user?.role === 'ADMIN') return 'disease-surveillance-center';
+    if (user?.role === 'DOCTOR') return 'patients';
+    return 'records';
+  };
+
   return (
     <div className="app-container">
       {/* Sidebar Navigation */}
-      <Sidebar currentTab={currentTab} onSelectTab={(t) => setCurrentTab(t)} />
+      <Sidebar 
+        currentTab={currentTab} 
+        onSelectTab={(t) => setCurrentTab(t)}
+        mobileOpen={mobileOpen}
+        onCloseMobile={() => setMobileOpen(false)}
+      />
 
       {/* Main Content Area */}
       <div className="main-content">
         <Navbar
+          onToggleMobileSidebar={() => setMobileOpen(!mobileOpen)}
           onNavigate={(action) => {
             if (action === 'profile') {
               setCurrentTab('profile');
@@ -301,6 +320,40 @@ const AppContent: React.FC = () => {
           </main>
         </Suspense>
       </div>
+
+      {/* Mobile Bottom Bar Navigation */}
+      <nav className="mobile-bottom-nav no-print">
+        <div className="mobile-bottom-nav-items">
+          <button 
+            className={`mobile-nav-btn ${currentTab === getHomeTab() ? 'active' : ''}`}
+            onClick={() => setCurrentTab(getHomeTab())}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+            Home
+          </button>
+          <button 
+            className={`mobile-nav-btn ${currentTab === getSecondaryTab() ? 'active' : ''}`}
+            onClick={() => setCurrentTab(getSecondaryTab())}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            {user?.role === 'ADMIN' ? 'Surveillance' : user?.role === 'DOCTOR' ? 'Patients' : 'Records'}
+          </button>
+          <button 
+            className={`mobile-nav-btn ${currentTab === 'appointments' || currentTab === 'doctor-appointments' ? 'active' : ''}`}
+            onClick={() => setCurrentTab(user?.role === 'DOCTOR' ? 'doctor-appointments' : 'appointments')}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Appointments
+          </button>
+          <button 
+            className={`mobile-nav-btn ${currentTab === 'profile' ? 'active' : ''}`}
+            onClick={() => setCurrentTab('profile')}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            Profile
+          </button>
+        </div>
+      </nav>
     </div>
   );
 };

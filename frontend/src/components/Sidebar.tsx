@@ -34,15 +34,23 @@ import {
 interface SidebarProps {
   currentTab: string;
   onSelectTab: (tab: string) => void;
+  mobileOpen?: boolean;
+  onCloseMobile?: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, mobileOpen, onCloseMobile }) => {
   const { user } = useAuth();
   const [surveillanceOpen, setSurveillanceOpen] = useState(true);
 
   if (!user) return null;
 
   const role = user.role;
+
+  // Handle item click on mobile
+  const handleItemClick = (tab: string) => {
+    onSelectTab(tab);
+    if (onCloseMobile) onCloseMobile();
+  };
 
   // Determine if current tab is a disease surveillance subsection
   const isSurveillanceActive =
@@ -51,22 +59,39 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
     ['surveillance-overview', 'surveillance-map', 'hotspots', 'forecast', 'analytics', 'insights'].includes(currentTab);
 
   return (
-    <aside className="sidebar no-print">
-      <div className="sidebar-header">
-        <div className="sidebar-brand-wrapper">
-          <div className="sidebar-brand-icon">
-            <HeartPulse size={22} color="#ffffff" strokeWidth={2.5} />
-          </div>
-          <div className="sidebar-brand-info">
-            <div className="sidebar-brand-title">
-              <span>Smart</span>Health
+    <>
+      {/* Mobile Drawer Backdrop */}
+      <div 
+        className={`mobile-sidebar-backdrop ${mobileOpen ? 'open' : ''}`} 
+        onClick={onCloseMobile} 
+      />
+
+      <aside className={`sidebar no-print ${mobileOpen ? 'mobile-open' : ''}`}>
+        <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="sidebar-brand-wrapper">
+            <div className="sidebar-brand-icon">
+              <HeartPulse size={22} color="#ffffff" strokeWidth={2.5} />
             </div>
-            <div className="sidebar-brand-subtitle">
-              Clinical &amp; Surveillance
+            <div className="sidebar-brand-info">
+              <div className="sidebar-brand-title">
+                <span>Smart</span>Health
+              </div>
+              <div className="sidebar-brand-subtitle">
+                Clinical &amp; Surveillance
+              </div>
             </div>
           </div>
+          {onCloseMobile && (
+            <button 
+              onClick={onCloseMobile} 
+              style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px' }}
+              className="md:hidden"
+              aria-label="Close menu"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+          )}
         </div>
-      </div>
 
       <nav className="sidebar-nav">
         {/* =================================================================
@@ -294,5 +319,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
         </div>
       </div>
     </aside>
+    </>
   );
 };

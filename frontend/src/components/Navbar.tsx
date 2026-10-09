@@ -14,7 +14,12 @@ interface NotificationItem {
   createdAt: string;
 }
 
-export const Navbar: React.FC<{ onNavigate?: (tab: string) => void }> = ({ onNavigate }) => {
+interface NavbarProps {
+  onNavigate?: (tab: string) => void;
+  onToggleMobileSidebar?: () => void;
+}
+
+export const Navbar: React.FC<NavbarProps> = ({ onNavigate, onToggleMobileSidebar }) => {
   const { user, logout, unreadNotifications, fetchNotificationsCount } = useAuth();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -123,11 +128,30 @@ export const Navbar: React.FC<{ onNavigate?: (tab: string) => void }> = ({ onNav
 
   return (
     <header className="top-navbar no-print">
-      {/* Left Section - Functional Search */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flex: 1 }}>
-        <form onSubmit={handleSearchSubmit} style={{ position: 'relative', width: '100%', maxWidth: '420px' }}>
+      {/* Left Section - Mobile Hamburger + Search */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
+        {onToggleMobileSidebar && (
+          <button
+            onClick={onToggleMobileSidebar}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--text-main)',
+              cursor: 'pointer',
+              padding: '0.4rem',
+              display: 'flex',
+              alignItems: 'center',
+              borderRadius: 'var(--radius-md)',
+            }}
+            aria-label="Toggle navigation menu"
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+          </button>
+        )}
+
+        <form onSubmit={handleSearchSubmit} className="hidden sm:block" style={{ position: 'relative', width: '100%', maxWidth: '380px' }}>
           <Search 
-            size={18} 
+            size={16} 
             style={{ 
               position: 'absolute', 
               left: '12px', 
@@ -140,24 +164,16 @@ export const Navbar: React.FC<{ onNavigate?: (tab: string) => void }> = ({ onNav
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search records, conditions, doctors, symptoms..."
+            placeholder="Search records, conditions, doctors..."
             style={{
               width: '100%',
-              padding: '0.6rem 0.9rem 0.6rem 2.75rem',
+              padding: '0.5rem 0.8rem 0.5rem 2.4rem',
               border: '1px solid var(--border-light)',
               borderRadius: 'var(--radius-md)',
-              fontSize: '0.88rem',
+              fontSize: '0.85rem',
               background: '#fafbfc',
               color: 'var(--text-main)',
               outline: 'none',
-            }}
-            onFocus={(e) => {
-              e.target.style.borderColor = 'var(--primary-500)';
-              e.target.style.background = 'white';
-            }}
-            onBlur={(e) => {
-              e.target.style.borderColor = 'var(--border-light)';
-              e.target.style.background = '#fafbfc';
             }}
           />
         </form>
