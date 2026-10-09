@@ -28,6 +28,7 @@ import {
   SlidersHorizontal,
 } from 'lucide-react';
 import api from '../../services/api';
+import { BpTrendChart, GlucoseTrendChart, GenericLabTrendChart } from '../../components/HealthCharts';
 
 export const PatientDashboard: React.FC<{ onNavigate: (tab: string) => void }> = ({ onNavigate }) => {
   const { user } = useAuth();
@@ -798,98 +799,28 @@ export const PatientDashboard: React.FC<{ onNavigate: (tab: string) => void }> =
                     </span>
                   </div>
 
-                  {/* SVG Line Chart */}
-                  {selectedTrend.points.length >= 2 ? (
-                    <div style={{ height: '75px', position: 'relative', marginTop: '0.75rem' }}>
-                      <svg width="100%" height="100%" viewBox="0 0 280 60" preserveAspectRatio="none" style={{ overflow: 'visible' }}>
-                        <defs>
-                          <linearGradient id="trendGradSvg" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#0284c7" stopOpacity="0.3" />
-                            <stop offset="100%" stopColor="#0284c7" stopOpacity="0.0" />
-                          </linearGradient>
-                        </defs>
-
-                        {(() => {
-                          const pts = selectedTrend.points;
-                          const values = pts.map((p: any) => p.value);
-                          const minVal = Math.min(...values) * 0.9;
-                          const maxVal = Math.max(...values) * 1.1 || 1;
-                          const coords = pts.map((p: any, i: number) => {
-                            const x = (i / (pts.length - 1 || 1)) * 260 + 10;
-                            const y = 50 - ((p.value - minVal) / (maxVal - minVal || 1)) * 40;
-                            return { x, y, point: p };
-                          });
-
-                          const pathD = coords.reduce(
-                            (acc: string, curr: any, idx: number) =>
-                              idx === 0 ? `M ${curr.x} ${curr.y}` : `${acc} L ${curr.x} ${curr.y}`,
-                            ''
-                          );
-
-                          const areaD = `${pathD} L ${coords[coords.length - 1].x} 55 L ${coords[0].x} 55 Z`;
-
-                          return (
-                            <>
-                              <path d={areaD} fill="url(#trendGradSvg)" />
-                              <path
-                                d={pathD}
-                                fill="none"
-                                stroke="#0284c7"
-                                strokeWidth="2.5"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              />
-                              {coords.map((c: any, idx: number) => (
-                                <circle
-                                  key={idx}
-                                  cx={c.x}
-                                  cy={c.y}
-                                  r={hoveredPoint?.date === c.point.date ? 5 : 3.5}
-                                  fill={c.point.status === 'ABNORMAL' ? '#ef4444' : '#0284c7'}
-                                  stroke="#ffffff"
-                                  strokeWidth="2"
-                                  style={{ cursor: 'pointer', transition: 'all 0.15s ease' }}
-                                  onMouseEnter={() => setHoveredPoint(c.point)}
-                                  onMouseLeave={() => setHoveredPoint(null)}
-                                  onClick={() => onNavigate('records')}
-                                />
-                              ))}
-                            </>
-                          );
-                        })()}
-                      </svg>
-
-                      {hoveredPoint && (
-                        <div
-                          style={{
-                            position: 'absolute',
-                            top: -28,
-                            left: '50%',
-                            transform: 'translateX(-50%)',
-                            background: '#0f172a',
-                            color: 'white',
-                            padding: '0.2rem 0.5rem',
-                            borderRadius: 6,
-                            fontSize: '0.68rem',
-                            fontWeight: 700,
-                            pointerEvents: 'none',
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {hoveredPoint.date}: {hoveredPoint.value} {selectedTrend.unit}
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <p style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '0.5rem' }}>
-                      One measurement recorded. Additional data required for historical trend graph.
-                    </p>
-                  )}
+                  {/* Interactive Chart.js Visualization */}
+                  <div style={{ marginTop: '0.75rem', background: '#ffffff', padding: '0.85rem', borderRadius: '12px', border: '1px solid #e0f2fe', boxShadow: '0 1px 4px rgba(2, 132, 199, 0.05)' }}>
+                    <GenericLabTrendChart
+                      title={selectedTrend.title}
+                      unit={selectedTrend.unit}
+                      data={selectedTrend.points.map((p: any) => ({
+                        date: p.date,
+                        value: p.value,
+                        status: p.status || (p.value > 100 ? 'ABNORMAL' : 'NORMAL'),
+                      }))}
+                    />
+                  </div>
                 </div>
 
-                <div style={{ fontSize: '0.75rem', color: '#0369a1', marginTop: '0.75rem', paddingTop: '0.6rem', borderTop: '1px solid #bae6fd', fontWeight: 600 }}>
-                  Last updated: {new Date(selectedTrend.lastUpdated).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                <div style={{ fontSize: '0.75rem', color: '#0369a1', marginTop: '0.75rem', paddingTop: '0.6rem', borderTop: '1px solid #bae6fd', fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>Last updated: {new Date(selectedTrend.lastUpdated).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                  <button
+                    onClick={() => onNavigate('health-insights')}
+                    style={{ background: 'none', border: 'none', color: '#0284c7', fontWeight: 700, fontSize: '0.75rem', cursor: 'pointer' }}
+                  >
+                    View Insights &rarr;
+                  </button>
                 </div>
               </>
             ) : (
