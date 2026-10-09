@@ -55,40 +55,80 @@ export const LoginPage: React.FC<{ onNavigate: (page: string) => void }> = ({ on
     setPassword(p);
   };
 
+  const [selectedRole, setSelectedRole] = useState<'PATIENT' | 'DOCTOR' | 'ADMIN'>('PATIENT');
+
+  const handleRoleSelect = (role: 'PATIENT' | 'DOCTOR' | 'ADMIN') => {
+    setSelectedRole(role);
+    if (role === 'PATIENT') {
+      setEmail('rahul.verma@example.com');
+      setPassword('Patient@123');
+    } else if (role === 'DOCTOR') {
+      setEmail('dr.sharma@smarthealth.gov');
+      setPassword('Doctor@123');
+    } else {
+      setEmail('admin@smarthealth.gov');
+      setPassword('Admin@123');
+    }
+  };
+
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc', padding: '2rem' }}>
-      <div className="card" style={{ maxWidth: '440px', width: '100%', padding: '2.5rem 2rem', boxShadow: 'var(--shadow-xl)' }}>
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc', padding: '1.5rem 1rem' }}>
+      <div className="card" style={{ maxWidth: '420px', width: '100%', padding: '2.25rem 1.75rem', boxShadow: 'var(--shadow-xl)', borderRadius: '24px' }}>
+        {/* Top Header */}
+        <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
           <div style={{
-            width: '54px',
-            height: '54px',
+            width: '52px',
+            height: '52px',
             borderRadius: '16px',
             background: 'linear-gradient(135deg, #1d4ed8 0%, #06b6d4 100%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            margin: '0 auto 1rem auto',
+            margin: '0 auto 0.85rem auto',
             boxShadow: '0 8px 20px rgba(29, 78, 216, 0.35)',
           }}>
-            <HeartPulse size={28} color="#ffffff" strokeWidth={2.5} />
+            <HeartPulse size={26} color="#ffffff" strokeWidth={2.5} />
           </div>
-          <h2 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em', marginBottom: '0.35rem' }}>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em', marginBottom: '0.2rem' }}>
             Smart<span style={{ color: 'var(--primary-600)' }}>Health</span>
           </h2>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            Access clinical records, risk analytics, and disease surveillance
-          </p>
+          <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '0.4rem' }}>Welcome Back</h3>
+          <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Sign in to continue</p>
+        </div>
+
+        {/* Role Selector Tabs (Reference Screen 2) */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.35rem', background: '#f1f5f9', padding: '4px', borderRadius: '14px', marginBottom: '1.5rem' }}>
+          {(['PATIENT', 'DOCTOR', 'ADMIN'] as const).map((r) => (
+            <button
+              key={r}
+              type="button"
+              onClick={() => handleRoleSelect(r)}
+              style={{
+                padding: '0.5rem 0',
+                borderRadius: '10px',
+                border: 'none',
+                background: selectedRole === r ? '#2563eb' : 'transparent',
+                color: selectedRole === r ? '#ffffff' : '#64748b',
+                fontWeight: 700,
+                fontSize: '0.8rem',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              {r.charAt(0) + r.slice(1).toLowerCase()}
+            </button>
+          ))}
         </div>
 
         {error && (
-          <div className="alert-banner alert-banner-danger" style={{ marginBottom: '1.25rem', padding: '0.75rem 1rem' }}>
-            <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{error}</div>
+          <div className="alert-banner alert-banner-danger" style={{ marginBottom: '1.25rem', padding: '0.65rem 0.85rem' }}>
+            <div style={{ fontSize: '0.82rem', fontWeight: 600 }}>{error}</div>
           </div>
         )}
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label className="form-label">Email Address</label>
+            <label className="form-label">Email address</label>
             <div style={{ position: 'relative' }}>
               <input
                 type="email"
@@ -136,62 +176,47 @@ export const LoginPage: React.FC<{ onNavigate: (page: string) => void }> = ({ on
             </div>
           </div>
 
-          <button type="submit" disabled={loading} className="btn btn-primary" style={{ width: '100%', padding: '0.75rem', marginTop: '0.5rem' }}>
-            {loading ? 'Authenticating...' : 'Sign In'} <ArrowRight size={16} />
+          <div style={{ textAlign: 'right', marginBottom: '1.25rem' }}>
+            <a href="#forgot" onClick={(e) => { e.preventDefault(); alert('Password reset request link sent to registered email.'); }} style={{ fontSize: '0.78rem', color: 'var(--primary-600)', fontWeight: 600 }}>
+              Forgot Password?
+            </a>
+          </div>
+
+          <button type="submit" disabled={loading} className="btn btn-primary" style={{ width: '100%', padding: '0.75rem', borderRadius: '14px', fontSize: '0.92rem', fontWeight: 700 }}>
+            {loading ? 'Authenticating...' : 'Login'}
           </button>
         </form>
 
-        {/* 1-Click Quick Demo Switchers */}
-        <div style={{ marginTop: '1.75rem', paddingTop: '1.25rem', borderTop: '1px solid var(--border-light)' }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.75rem', textAlign: 'center' }}>
-            Quick Demo Accounts
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <button
-              type="button"
-              onClick={() => setDemoCredentials('rahul.verma@example.com', 'Patient@123')}
-              className="btn btn-outline"
-              style={{ justifyContent: 'space-between', padding: '0.5rem 0.85rem', fontSize: '0.82rem' }}
-            >
-              <span>👤 <strong>Patient:</strong> Rahul Verma</span>
-              <span style={{ color: 'var(--primary-600)', fontWeight: 600 }}>Fill</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setDemoCredentials('dr.sharma@smarthealth.gov', 'Doctor@123')}
-              className="btn btn-outline"
-              style={{ justifyContent: 'space-between', padding: '0.5rem 0.85rem', fontSize: '0.82rem' }}
-            >
-              <span>🩺 <strong>Doctor:</strong> Dr. Rajesh Sharma</span>
-              <span style={{ color: 'var(--primary-600)', fontWeight: 600 }}>Fill</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setDemoCredentials('admin@smarthealth.gov', 'Admin@123')}
-              className="btn btn-outline"
-              style={{ justifyContent: 'space-between', padding: '0.5rem 0.85rem', fontSize: '0.82rem' }}
-            >
-              <span>🛡️ <strong>Admin:</strong> Dr. Anita Desai</span>
-              <span style={{ color: 'var(--primary-600)', fontWeight: 600 }}>Fill</span>
-            </button>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1.5rem', fontSize: '0.82rem' }}>
-          <span style={{ color: 'var(--text-muted)' }}>Don't have an account?</span>
-          <button onClick={() => onNavigate('register')} style={{ background: 'none', border: 'none', color: 'var(--primary-600)', fontWeight: 700, cursor: 'pointer' }}>
-            Register here
+        <div style={{ textAlign: 'center', margin: '1.25rem 0 1rem 0', fontSize: '0.82rem', color: '#64748b' }}>
+          Don't have an account?{' '}
+          <button onClick={() => onNavigate('register')} style={{ background: 'none', border: 'none', color: '#2563eb', fontWeight: 700, cursor: 'pointer' }}>
+            Register
           </button>
         </div>
 
-        <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+        {/* Divider */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', margin: '1.25rem 0' }}>
+          <div style={{ flex: 1, height: '1px', background: '#e2e8f0' }} />
+          <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>or login with</span>
+          <div style={{ flex: 1, height: '1px', background: '#e2e8f0' }} />
+        </div>
+
+        {/* Google Login Option (Target Reference Screen 2) */}
+        <button
+          type="button"
+          onClick={() => handleRoleSelect(selectedRole)}
+          className="btn btn-outline"
+          style={{ width: '100%', borderRadius: '14px', justifyContent: 'center', padding: '0.65rem', fontSize: '0.85rem' }}
+        >
+          <span style={{ fontSize: '1.1rem', marginRight: '0.4rem' }}>G</span> Continue with Google
+        </button>
+
+        <div style={{ textAlign: 'center', marginTop: '1.25rem' }}>
           <button
             onClick={() => onNavigate('landing')}
             style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.8rem', cursor: 'pointer' }}
           >
-            &larr; Back to Landing Page
+            &larr; Back to Home
           </button>
         </div>
       </div>
