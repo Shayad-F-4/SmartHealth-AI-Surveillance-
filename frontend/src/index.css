@@ -658,6 +658,12 @@ button, input, select, textarea {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+@media (max-width: 900px) {
+  .mobile-bottom-nav {
+    display: block !important;
+  }
+}
+
 .mobile-bottom-nav-items {
   display: flex;
   height: 100%;
