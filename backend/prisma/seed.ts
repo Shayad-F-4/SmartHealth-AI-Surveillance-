@@ -95,6 +95,9 @@ async function main() {
       qualification: 'MBBS, MD (Medicine), DM (Cardiology)',
       experienceYears: 14,
       hospitalId: hospitalCentral.id,
+      verificationStatus: 'VERIFIED',
+      verifiedDocumentType: 'MCI Medical Registration License',
+      verifiedAt: new Date(),
     },
   });
 
@@ -116,6 +119,9 @@ async function main() {
       qualification: 'MBBS, MD (Infectious Diseases), MPH',
       experienceYears: 8,
       hospitalId: clinicRiverside.id,
+      verificationStatus: 'VERIFIED',
+      verifiedDocumentType: 'MCI Medical Registration License',
+      verifiedAt: new Date(),
     },
   });
 
@@ -137,6 +143,9 @@ async function main() {
       qualification: 'MBBS, DCH, DNB (Pediatrics)',
       experienceYears: 16,
       hospitalId: hospitalGreenValley.id,
+      verificationStatus: 'VERIFIED',
+      verifiedDocumentType: 'MCI Medical Registration License',
+      verifiedAt: new Date(),
     },
   });
 
