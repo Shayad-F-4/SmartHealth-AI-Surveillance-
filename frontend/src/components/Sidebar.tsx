@@ -36,21 +36,16 @@ interface SidebarProps {
   onSelectTab: (tab: string) => void;
   mobileOpen?: boolean;
   onCloseMobile?: () => void;
+  collapsed?: boolean;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, mobileOpen, onCloseMobile }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, mobileOpen, onCloseMobile, collapsed }) => {
   const { user } = useAuth();
   const [surveillanceOpen, setSurveillanceOpen] = useState(true);
 
   if (!user) return null;
 
   const role = user.role;
-
-  // Handle item click on mobile
-  const handleItemClick = (tab: string) => {
-    onSelectTab(tab);
-    if (onCloseMobile) onCloseMobile();
-  };
 
   // Determine if current tab is a disease surveillance subsection
   const isSurveillanceActive =
@@ -66,11 +61,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, mobil
         onClick={onCloseMobile} 
       />
 
-      <aside className={`sidebar no-print ${mobileOpen ? 'mobile-open' : ''}`}>
+      <aside className={`sidebar no-print ${mobileOpen ? 'mobile-open' : ''} ${collapsed ? 'collapsed' : ''}`}>
         <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div className="sidebar-brand-wrapper">
             <div className="sidebar-brand-icon">
-              <HeartPulse size={22} color="#ffffff" strokeWidth={2.5} />
+              <HeartPulse size={20} color="#ffffff" strokeWidth={2.5} />
             </div>
             <div className="sidebar-brand-info">
               <div className="sidebar-brand-title">
@@ -81,16 +76,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, mobil
               </div>
             </div>
           </div>
-          {onCloseMobile && (
-            <button 
-              onClick={onCloseMobile} 
-              style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px' }}
-              className="md:hidden"
-              aria-label="Close menu"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-            </button>
-          )}
         </div>
 
       <nav className="sidebar-nav">
@@ -99,44 +84,44 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, mobil
             ================================================================= */}
         {role === 'PATIENT' && (
           <>
-            <div style={{ padding: '0.5rem 0.75rem', fontSize: '0.72rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            <div style={{ padding: '0.4rem 0.75rem', fontSize: '0.7rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Patient Portal
             </div>
 
-            <div className={`nav-item ${currentTab === 'dashboard' ? 'active' : ''}`} onClick={() => onSelectTab('dashboard')}>
-              <Activity size={18} /> Overview
+            <div className={`nav-item ${currentTab === 'dashboard' ? 'active' : ''}`} data-label="Overview" onClick={() => onSelectTab('dashboard')}>
+              <Activity size={18} /> <span>Overview</span>
             </div>
 
-            <div className={`nav-item ${['records', 'timeline', 'episodes', 'prescriptions', 'labs'].includes(currentTab) ? 'active' : ''}`} onClick={() => onSelectTab('records')}>
-              <FileText size={18} /> Medical Records
+            <div className={`nav-item ${['records', 'timeline', 'episodes', 'prescriptions', 'labs'].includes(currentTab) ? 'active' : ''}`} data-label="Medical Records" onClick={() => onSelectTab('records')}>
+              <FileText size={18} /> <span>Medical Records</span>
             </div>
 
-            <div className={`nav-item ${currentTab === 'appointments' ? 'active' : ''}`} onClick={() => onSelectTab('appointments')}>
-              <Calendar size={18} /> Appointments
+            <div className={`nav-item ${currentTab === 'appointments' ? 'active' : ''}`} data-label="Appointments" onClick={() => onSelectTab('appointments')}>
+              <Calendar size={18} /> <span>Appointments</span>
             </div>
 
-            <div className={`nav-item ${['health-insights', 'trends', 'ai-risk'].includes(currentTab) ? 'active' : ''}`} onClick={() => onSelectTab('health-insights')}>
-              <TrendingUp size={18} /> Health Insights
+            <div className={`nav-item ${['health-insights', 'trends', 'ai-risk'].includes(currentTab) ? 'active' : ''}`} data-label="Health Insights" onClick={() => onSelectTab('health-insights')}>
+              <TrendingUp size={18} /> <span>Health Insights</span>
             </div>
 
-            <div className={`nav-item ${currentTab === 'ai-assistant' ? 'active' : ''}`} onClick={() => onSelectTab('ai-assistant')}>
-              <MessageSquare size={18} /> AI Assistant
+            <div className={`nav-item ${currentTab === 'ai-assistant' ? 'active' : ''}`} data-label="AI Assistant" onClick={() => onSelectTab('ai-assistant')}>
+              <MessageSquare size={18} /> <span>AI Assistant</span>
             </div>
 
-            <div className={`nav-item ${currentTab === 'family' ? 'active' : ''}`} onClick={() => onSelectTab('family')}>
-              <GitFork size={18} /> Family Health
+            <div className={`nav-item ${currentTab === 'family' ? 'active' : ''}`} data-label="Family Health" onClick={() => onSelectTab('family')}>
+              <GitFork size={18} /> <span>Family Health</span>
             </div>
 
-            <div className={`nav-item ${currentTab === 'referrals' ? 'active' : ''}`} onClick={() => onSelectTab('referrals')}>
-              <ShieldCheck size={18} /> Referrals
+            <div className={`nav-item ${currentTab === 'referrals' ? 'active' : ''}`} data-label="Referrals" onClick={() => onSelectTab('referrals')}>
+              <ShieldCheck size={18} /> <span>Referrals</span>
             </div>
 
-            <div className={`nav-item ${currentTab === 'surveillance' ? 'active' : ''}`} onClick={() => onSelectTab('surveillance')}>
-              <Eye size={18} /> Disease Surveillance
+            <div className={`nav-item ${currentTab === 'surveillance' ? 'active' : ''}`} data-label="Disease Surveillance" onClick={() => onSelectTab('surveillance')}>
+              <Eye size={18} /> <span>Disease Surveillance</span>
             </div>
 
-            <div className={`nav-item ${currentTab === 'profile' ? 'active' : ''}`} onClick={() => onSelectTab('profile')}>
-              <UserCheck size={18} /> Profile & Settings
+            <div className={`nav-item ${currentTab === 'profile' ? 'active' : ''}`} data-label="Profile & Settings" onClick={() => onSelectTab('profile')}>
+              <UserCheck size={18} /> <span>Profile &amp; Settings</span>
             </div>
 
             {/* Smart Health ID - Compact Accessible Profile Badge */}

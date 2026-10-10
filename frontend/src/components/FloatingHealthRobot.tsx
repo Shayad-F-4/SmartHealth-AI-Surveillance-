@@ -3,22 +3,20 @@ import { createPortal } from 'react-dom';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, useGLTF, Center } from '@react-three/drei';
 import * as THREE from 'three';
+import { Bot, Sparkles, X, MessageSquareHeart } from 'lucide-react';
 
 export interface FloatingHealthRobotProps {
   state?: 'idle' | 'thinking' | 'speaking';
+  onOpenAssistant?: () => void;
   onFocusChat?: () => void;
   className?: string;
   style?: React.CSSProperties;
 }
 
 const STORAGE_KEY = 'smarthealth-ai-robot-position';
-const WIDGET_WIDTH = 180;
-const WIDGET_HEIGHT = 210;
-const MARGIN = 16;
-const DRAG_THRESHOLD = 7; // pixels for drag vs click
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 1. Robot Model Sub-component
+// 1. Robot 3D Model Sub-component
 // ─────────────────────────────────────────────────────────────────────────────
 const RobotModel: React.FC<{
   aiState: 'idle' | 'thinking' | 'speaking';
@@ -107,7 +105,6 @@ const RobotModel: React.FC<{
         </Center>
       </group>
 
-      {/* Holographic Floating Platform Underneath */}
       <group ref={platformRef} position={[0, -1.18, 0]}>
         <mesh rotation={[-Math.PI / 2, 0, 0]}>
           <circleGeometry args={[0.95, 32]} />
@@ -118,7 +115,6 @@ const RobotModel: React.FC<{
             side={THREE.DoubleSide}
           />
         </mesh>
-
         <mesh rotation={[-Math.PI / 2, 0, 0]}>
           <ringGeometry args={[0.82, 0.96, 48]} />
           <meshBasicMaterial
@@ -127,16 +123,6 @@ const RobotModel: React.FC<{
             opacity={0.7}
             side={THREE.DoubleSide}
           />
-        </mesh>
-
-        <mesh rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[1.05, 1.12, 32]} />
-          <meshBasicMaterial color="#0ea5e9" transparent opacity={0.35} side={THREE.DoubleSide} />
-        </mesh>
-
-        <mesh rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[0.2, 0.35, 24]} />
-          <meshBasicMaterial color="#7dd3fc" transparent opacity={0.8} side={THREE.DoubleSide} />
         </mesh>
       </group>
 
@@ -152,9 +138,6 @@ const RobotModel: React.FC<{
 
 useGLTF.preload('/models/health-assistant.glb');
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 2. WebGL & Position Helpers
-// ─────────────────────────────────────────────────────────────────────────────
 const checkWebGLAvailability = (): boolean => {
   try {
     const canvas = document.createElement('canvas');
@@ -167,50 +150,37 @@ const checkWebGLAvailability = (): boolean => {
   }
 };
 
-const clampToViewport = (
-  x: number,
-  y: number,
-  width: number = WIDGET_WIDTH,
-  height: number = WIDGET_HEIGHT
-): { x: number; y: number } => {
-  if (typeof window === 'undefined') return { x, y };
-  const minX = MARGIN;
-  const maxX = Math.max(MARGIN, window.innerWidth - width - MARGIN);
-  const minY = MARGIN;
-  const maxY = Math.max(MARGIN, window.innerHeight - height - MARGIN);
-
-  return {
-    x: Math.min(Math.max(x, minX), maxX),
-    y: Math.min(Math.max(y, minY), maxY),
-  };
-};
-
-const getDefaultPosition = (): { x: number; y: number } => {
-  if (typeof window === 'undefined') return { x: 100, y: 100 };
-  return clampToViewport(
-    window.innerWidth - WIDGET_WIDTH - 24,
-    window.innerHeight - WIDGET_HEIGHT - 24
-  );
-};
-
 // ─────────────────────────────────────────────────────────────────────────────
-// 3. Main Clean Floating HealRobo Component
+// 2. Main Floating SmartHealth AI Robot Component
 // ─────────────────────────────────────────────────────────────────────────────
 export const FloatingHealthRobot: React.FC<FloatingHealthRobotProps> = ({
   state = 'idle',
+  onOpenAssistant,
   onFocusChat,
   className = '',
   style = {},
 }) => {
-  const [position, setPosition] = useState<{ x: number; y: number }>(getDefaultPosition);
-  const [isDragging, setIsDragging] = useState(false);
-  const [isInteracting3D, setIsInteracting3D] = useState(false);
-  const [isClosed, setIsClosed] = useState(false);
-  const [isClosingAnim, setIsClosingAnim] = useState(false);
   const [webglSupported, setWebglSupported] = useState(true);
-  const [reducedMotion, setReducedMotion] = useState(false);
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [tooltipTextIndex, setTooltipTextIndex] = useState(0);
 
-  const widgetRef = useRef<HTMLDivElement>(null);
+  // Widget dimensions (Compact & 25% smaller default footprint)
+  const WIDGET_WIDTH = 75;
+  const WIDGET_HEIGHT = 88;
+  const VISIBLE_PEEK_PX = 22; // ~20-25% visible body/face when peeking
+
+  // Position & Edge Peeking State
+  const [position, setPosition] = useState<{ x: number; y: number }>(() => {
+    if (typeof window === 'undefined') return { x: 100, y: 100 };
+    return {
+      x: window.innerWidth - WIDGET_WIDTH - 16,
+      y: window.innerHeight - WIDGET_HEIGHT - (window.innerWidth < 900 ? 84 : 32),
+    };
+  });
+
+  const [isDragging, setIsDragging] = useState(false);
+  const [isPeekingEdge, setIsPeekingEdge] = useState<'right' | 'left' | 'top' | 'bottom' | null>(null);
+
   const dragStartRef = useRef<{ pointerX: number; pointerY: number; posX: number; posY: number }>({
     pointerX: 0,
     pointerY: 0,
@@ -219,81 +189,69 @@ export const FloatingHealthRobot: React.FC<FloatingHealthRobotProps> = ({
   });
   const isPointerDownRef = useRef(false);
   const isDragActiveRef = useRef(false);
-  const lastClickTimeRef = useRef<number>(0);
-  const clickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const updateDomPosition = useCallback((x: number, y: number) => {
-    if (widgetRef.current) {
-      widgetRef.current.style.left = `${x}px`;
-      widgetRef.current.style.top = `${y}px`;
-    }
-  }, []);
+  const tooltipOptions = [
+    'Ask SmartHealth AI 💬',
+    'Need health help? 🩺',
+    'AI Health Guide 🤖',
+  ];
 
   useEffect(() => {
     setWebglSupported(checkWebGLAvailability());
 
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-    setReducedMotion(mq.matches);
-    const motionListener = (e: MediaQueryListEvent) => setReducedMotion(e.matches);
-    mq.addEventListener('change', motionListener);
+    const interval = setInterval(() => {
+      setShowTooltip((prev) => {
+        if (!prev) setTooltipTextIndex((idx) => (idx + 1) % tooltipOptions.length);
+        return !prev;
+      });
+    }, 9000);
 
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (typeof parsed.x === 'number' && typeof parsed.y === 'number') {
-          setPosition(clampToViewport(parsed.x, parsed.y));
-        } else {
-          setPosition(getDefaultPosition());
-        }
-      } else {
-        setPosition(getDefaultPosition());
-      }
-    } catch {
-      setPosition(getDefaultPosition());
+    return () => clearInterval(interval);
+  }, []);
+
+  // Screen Edge Snap / Peeking helper supporting Left, Right, Top, Bottom
+  const calculateDockedPosition = (x: number, y: number) => {
+    if (typeof window === 'undefined') return { clampedX: x, clampedY: y, peeking: null };
+
+    const screenW = window.innerWidth;
+    const screenH = window.innerHeight;
+
+    let peeking: 'right' | 'left' | 'top' | 'bottom' | null = null;
+    let clampedX = x;
+    let clampedY = y;
+
+    const edgeThreshold = 32;
+
+    if (x > screenW - WIDGET_WIDTH - edgeThreshold) {
+      // Right Edge Peek
+      peeking = 'right';
+      clampedX = screenW - VISIBLE_PEEK_PX;
+      clampedY = Math.min(Math.max(y, 16), screenH - WIDGET_HEIGHT - 16);
+    } else if (x < edgeThreshold) {
+      // Left Edge Peek
+      peeking = 'left';
+      clampedX = -WIDGET_WIDTH + VISIBLE_PEEK_PX;
+      clampedY = Math.min(Math.max(y, 16), screenH - WIDGET_HEIGHT - 16);
+    } else if (y < edgeThreshold) {
+      // Top Edge Peek
+      peeking = 'top';
+      clampedY = -WIDGET_HEIGHT + VISIBLE_PEEK_PX;
+      clampedX = Math.min(Math.max(x, 16), screenW - WIDGET_WIDTH - 16);
+    } else if (y > screenH - WIDGET_HEIGHT - edgeThreshold) {
+      // Bottom Edge Peek
+      peeking = 'bottom';
+      clampedY = screenH - VISIBLE_PEEK_PX;
+      clampedX = Math.min(Math.max(x, 16), screenW - WIDGET_WIDTH - 16);
+    } else {
+      // Free floating
+      clampedX = Math.min(Math.max(x, 16), screenW - WIDGET_WIDTH - 16);
+      clampedY = Math.min(Math.max(y, 16), screenH - WIDGET_HEIGHT - 16);
     }
 
-    const handleResize = () => {
-      setPosition((prev) => {
-        const clamped = clampToViewport(prev.x, prev.y);
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(clamped));
-        } catch {
-          // ignore
-        }
-        return clamped;
-      });
-    };
+    return { clampedX, clampedY, peeking };
+  };
 
-    const handleExternalReset = () => {
-      const def = getDefaultPosition();
-      setPosition(def);
-      updateDomPosition(def.x, def.y);
-      setIsClosed(false);
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(def));
-      } catch {
-        // ignore
-      }
-    };
-
-    const handleExternalOpen = () => {
-      setIsClosed(false);
-    };
-
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('smarthealth-reset-robot', handleExternalReset);
-    window.addEventListener('smarthealth-open-robot', handleExternalOpen);
-
-    return () => {
-      mq.removeEventListener('change', motionListener);
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('smarthealth-reset-robot', handleExternalReset);
-      window.removeEventListener('smarthealth-open-robot', handleExternalOpen);
-    };
-  }, [updateDomPosition]);
-
-  // Pointer drag logic
+  // Pointer Drag Handlers
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0 && e.pointerType === 'mouse') return;
 
@@ -320,17 +278,16 @@ export const FloatingHealthRobot: React.FC<FloatingHealthRobotProps> = ({
     const dy = e.clientY - dragStartRef.current.pointerY;
     const distance = Math.hypot(dx, dy);
 
-    if (!isDragActiveRef.current && distance > DRAG_THRESHOLD) {
+    if (!isDragActiveRef.current && distance > 5) {
       isDragActiveRef.current = true;
       setIsDragging(true);
+      setShowTooltip(false);
     }
 
     if (isDragActiveRef.current) {
-      e.preventDefault();
       const newX = dragStartRef.current.posX + dx;
       const newY = dragStartRef.current.posY + dy;
-      const clamped = clampToViewport(newX, newY);
-      updateDomPosition(clamped.x, clamped.y);
+      setPosition({ x: newX, y: newY });
     }
   };
 
@@ -345,77 +302,43 @@ export const FloatingHealthRobot: React.FC<FloatingHealthRobotProps> = ({
     }
 
     if (isDragActiveRef.current) {
-      const dx = e.clientX - dragStartRef.current.pointerX;
-      const dy = e.clientY - dragStartRef.current.pointerY;
-      const clamped = clampToViewport(
-        dragStartRef.current.posX + dx,
-        dragStartRef.current.posY + dy
-      );
-
-      setPosition(clamped);
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(clamped));
-      } catch {
-        // ignore
-      }
-
       setIsDragging(false);
       isDragActiveRef.current = false;
+
+      // Calculate 4-edge docking
+      const { clampedX, clampedY, peeking } = calculateDockedPosition(position.x, position.y);
+      setPosition({ x: clampedX, y: clampedY });
+      setIsPeekingEdge(peeking);
       return;
     }
 
-    // Handle single click vs double click
-    handleWidgetClick();
+    // Handle Tap / Click Action
+    handleRobotTap();
   };
 
-  const handlePointerCancel = () => {
-    isPointerDownRef.current = false;
-    if (isDragActiveRef.current) {
-      setIsDragging(false);
-      isDragActiveRef.current = false;
-      updateDomPosition(position.x, position.y);
+  const handleRobotTap = () => {
+    // If currently peeking at an edge, tap smoothly un-peeks it back onto screen
+    if (isPeekingEdge) {
+      const screenW = typeof window !== 'undefined' ? window.innerWidth : 1000;
+      const screenH = typeof window !== 'undefined' ? window.innerHeight : 800;
+
+      setPosition((prev) => {
+        let newX = prev.x;
+        let newY = prev.y;
+        if (isPeekingEdge === 'right') newX = screenW - WIDGET_WIDTH - 20;
+        else if (isPeekingEdge === 'left') newX = 20;
+        else if (isPeekingEdge === 'top') newY = 20;
+        else if (isPeekingEdge === 'bottom') newY = screenH - WIDGET_HEIGHT - 80;
+        return { x: newX, y: newY };
+      });
+      setIsPeekingEdge(null);
+      return;
     }
-  };
 
-  const handleWidgetClick = () => {
-    const now = Date.now();
-    const timeSinceLastClick = now - lastClickTimeRef.current;
-
-    if (timeSinceLastClick < 320 && timeSinceLastClick > 0) {
-      // Double click -> minimize
-      if (clickTimeoutRef.current) {
-        clearTimeout(clickTimeoutRef.current);
-        clickTimeoutRef.current = null;
-      }
-      lastClickTimeRef.current = 0;
-      handleCloseWidget();
-    } else {
-      // Single click -> focus chat
-      lastClickTimeRef.current = now;
-      if (clickTimeoutRef.current) {
-        clearTimeout(clickTimeoutRef.current);
-      }
-      clickTimeoutRef.current = setTimeout(() => {
-        if (onFocusChat) {
-          onFocusChat();
-        }
-        clickTimeoutRef.current = null;
-      }, 260);
-    }
-  };
-
-  const handleCloseWidget = () => {
-    setIsClosingAnim(true);
-    setTimeout(() => {
-      setIsClosed(true);
-      setIsClosingAnim(false);
-    }, 220);
-  };
-
-  const handleReopenWidget = () => {
-    setIsClosed(false);
-    setIsClosingAnim(false);
-    if (onFocusChat) {
+    // Otherwise open AI Assistant panel
+    if (onOpenAssistant) {
+      onOpenAssistant();
+    } else if (onFocusChat) {
       onFocusChat();
     }
   };
@@ -423,201 +346,225 @@ export const FloatingHealthRobot: React.FC<FloatingHealthRobotProps> = ({
   if (typeof document === 'undefined') return null;
 
   return createPortal(
-    <>
-      {/* ── 1. Re-open Pill (When Closed/Minimized) ────────────────────── */}
-      {isClosed && (
-        <button
-          onClick={handleReopenWidget}
-          title="HealRobo (Click to restore)"
-          style={{
-            position: 'fixed',
-            bottom: '24px',
-            right: '24px',
-            zIndex: 9999,
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.4rem',
-            padding: '0.5rem 0.9rem',
-            background: 'rgba(255, 255, 255, 0.95)',
-            backdropFilter: 'blur(12px)',
-            color: '#0369a1',
-            borderRadius: '999px',
-            border: '1px solid #bae6fd',
-            boxShadow: '0 8px 20px rgba(2, 132, 199, 0.18)',
-            cursor: 'pointer',
-            fontSize: '0.82rem',
-            fontWeight: 800,
-            letterSpacing: '0.02em',
-            animation: reducedMotion ? 'none' : 'healRoboFadeIn 0.25s ease',
-            transition: 'all 0.15s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'scale(1.05)';
-            e.currentTarget.style.borderColor = '#38bdf8';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'scale(1)';
-            e.currentTarget.style.borderColor = '#bae6fd';
-          }}
-        >
-          <span>🤖 HealRobo</span>
-        </button>
-      )}
-
-      {/* ── 2. Clean Draggable 3D HealRobo Floating Assistant ───────────── */}
-      {!isClosed && (
+    <div
+      className={`floating-health-robot-wrapper ${className}`}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      style={{
+        position: 'fixed',
+        left: `${position.x}px`,
+        top: `${position.y}px`,
+        width: `${WIDGET_WIDTH}px`,
+        height: `${WIDGET_HEIGHT}px`,
+        zIndex: 9990,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        touchAction: 'none',
+        userSelect: 'none',
+        cursor: isDragging ? 'grabbing' : 'grab',
+        transition: isDragging ? 'none' : 'all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.15)',
+        opacity: isPeekingEdge ? 0.9 : 1,
+        filter: isPeekingEdge ? 'brightness(0.95)' : 'none',
+        ...style,
+      }}
+    >
+      {/* ── Dynamic Tooltip Popup (Hidden when dragging or peeking) ──────── */}
+      {!isPeekingEdge && showTooltip && (
         <div
-          ref={widgetRef}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerCancel}
-          className={`healrobo-floating-wrapper ${className}`}
           style={{
-            position: 'fixed',
-            left: `${position.x}px`,
-            top: `${position.y}px`,
-            width: `${WIDGET_WIDTH}px`,
-            height: `${WIDGET_HEIGHT}px`,
-            zIndex: 9998,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            userSelect: 'none',
-            touchAction: 'none',
-            background: 'transparent', // 100% transparent container
-            border: 'none',
-            boxShadow: 'none',
-            cursor: isDragging ? 'grabbing' : 'grab',
-            transform: isDragging ? 'scale(1.04)' : 'scale(1)',
-            filter: isDragging
-              ? 'drop-shadow(0 14px 28px rgba(14, 165, 233, 0.35))'
-              : 'drop-shadow(0 6px 16px rgba(2, 132, 199, 0.15))',
-            transition: isDragging
-              ? 'none'
-              : isClosingAnim
-              ? 'opacity 0.2s ease, transform 0.2s ease'
-              : 'transform 0.2s ease, filter 0.2s ease',
-            opacity: isClosingAnim ? 0 : 1,
-            animation: isClosingAnim
-              ? 'healRoboFadeOut 0.2s ease forwards'
-              : reducedMotion
-              ? 'none'
-              : 'healRoboFadeIn 0.25s ease',
-            ...style,
+            position: 'absolute',
+            bottom: '100%',
+            marginBottom: '4px',
+            background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+            color: '#f8fafc',
+            padding: '0.3rem 0.6rem',
+            borderRadius: '10px',
+            fontSize: '0.68rem',
+            fontWeight: 700,
+            boxShadow: '0 6px 16px rgba(15, 23, 42, 0.25)',
+            border: '1px solid rgba(56, 189, 248, 0.3)',
+            whiteSpace: 'nowrap',
+            pointerEvents: 'none',
+            animation: 'robotTooltipFade 0.3s ease',
           }}
         >
-          {/* ── Minimalist Clean Name Tag ──────────────────────────────── */}
-          <div
-            style={{
-              fontSize: '0.85rem',
-              fontWeight: 800,
-              color: '#0f172a',
-              letterSpacing: '0.03em',
-              marginBottom: '0.15rem',
-              textShadow: '0 1px 4px rgba(255, 255, 255, 0.9)',
-              pointerEvents: 'none',
-            }}
-          >
-            HealRobo
-          </div>
-
-          {/* ── 3D Robot Transparent Canvas ────────────────────────────── */}
-          <div
-            style={{
-              width: '100%',
-              height: '180px',
-              position: 'relative',
-              background: 'transparent',
-            }}
-          >
-            {webglSupported ? (
-              <Suspense fallback={null}>
-                <Canvas
-                  camera={{ position: [0, 0.3, 3.8], fov: 42 }}
-                  gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    background: 'transparent',
-                    cursor: isInteracting3D ? 'grabbing' : 'grab',
-                  }}
-                >
-                  <ambientLight intensity={0.85} color="#f0f9ff" />
-                  <directionalLight position={[2.5, 3.5, 3]} intensity={1.3} color="#ffffff" />
-                  <directionalLight position={[-2.5, 1.5, -2.5]} intensity={0.9} color="#38bdf8" />
-
-                  <RobotModel aiState={state} reducedMotion={reducedMotion} />
-
-                  <OrbitControls
-                    enableRotate={true}
-                    enableZoom={true}
-                    enablePan={false}
-                    enableDamping={true}
-                    dampingFactor={0.05}
-                    minDistance={2.4}
-                    maxDistance={5.8}
-                    autoRotate={!reducedMotion && !isInteracting3D}
-                    autoRotateSpeed={state === 'thinking' ? 3.0 : 1.4}
-                    onStart={() => setIsInteracting3D(true)}
-                    onEnd={() => setIsInteracting3D(false)}
-                  />
-                </Canvas>
-              </Suspense>
-            ) : (
-              <div
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '2rem',
-                }}
-              >
-                🤖
-              </div>
-            )}
-          </div>
+          <Sparkles size={11} color="#38bdf8" style={{ display: 'inline', marginRight: '3px' }} />
+          <span>{tooltipOptions[tooltipTextIndex]}</span>
         </div>
       )}
 
-      {/* ── Clean Animations & Mobile Responsive Styles ───────────────── */}
+      {/* ── Compact 3D Robot Container ──────────────────────────────────── */}
+      <div
+        style={{
+          width: '100%',
+          height: '100%',
+          position: 'relative',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          animation: isPeekingEdge
+            ? isPeekingEdge === 'right'
+              ? 'robotLeanRight 2.5s ease-in-out infinite'
+              : isPeekingEdge === 'left'
+              ? 'robotLeanLeft 2.5s ease-in-out infinite'
+              : isPeekingEdge === 'top'
+              ? 'robotLeanTop 2.5s ease-in-out infinite'
+              : 'robotLeanBottom 2.5s ease-in-out infinite'
+            : 'robotGentleFloat 4s ease-in-out infinite',
+        }}
+      >
+        {/* Glow halo background */}
+        <div
+          style={{
+            position: 'absolute',
+            width: '52px',
+            height: '52px',
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(56, 189, 248, 0.35) 0%, rgba(2, 132, 199, 0) 75%)',
+            animation: 'robotGlowPulse 2.5s ease-in-out infinite',
+            pointerEvents: 'none',
+          }}
+        />
+
+        {/* 3D Model Canvas (Zoomed out & compact) */}
+        <div
+          style={{
+            width: '75px',
+            height: '75px',
+            position: 'relative',
+            zIndex: 2,
+            background: 'transparent',
+          }}
+        >
+          {webglSupported ? (
+            <Suspense fallback={<Bot size={32} color="#0284c7" />}>
+              <Canvas
+                camera={{ position: [0, 0.3, 4.2], fov: 40 }}
+                gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
+                style={{ width: '100%', height: '100%', background: 'transparent' }}
+              >
+                <ambientLight intensity={1.2} color="#f0f9ff" />
+                <directionalLight position={[2.5, 3.5, 3]} intensity={1.4} color="#ffffff" />
+                <directionalLight position={[-2.5, 1.5, -2.5]} intensity={0.9} color="#38bdf8" />
+
+                <RobotModel aiState={state} reducedMotion={false} />
+
+                <OrbitControls
+                  enableRotate={true}
+                  enableZoom={true}
+                  enablePan={false}
+                  enableDamping={true}
+                  dampingFactor={0.08}
+                  autoRotate={true}
+                  autoRotateSpeed={1.8}
+                  minDistance={2.2}
+                  maxDistance={5.5}
+                />
+              </Canvas>
+            </Suspense>
+          ) : (
+            <Bot size={32} color="#0284c7" style={{ filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.2))' }} />
+          )}
+        </div>
+
+        {/* Small Name Pill Badge (Hidden when peeking at edge) */}
+        {!isPeekingEdge && (
+          <div
+            style={{
+              position: 'relative',
+              zIndex: 3,
+              marginTop: '-6px',
+              background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+              color: '#38bdf8',
+              border: '1px solid rgba(56, 189, 248, 0.4)',
+              padding: '0.12rem 0.45rem',
+              borderRadius: '999px',
+              fontSize: '0.62rem',
+              fontWeight: 800,
+              letterSpacing: '0.02em',
+              boxShadow: '0 4px 10px rgba(15, 23, 42, 0.25)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.25rem',
+            }}
+          >
+            <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 4px #10b981' }} />
+            <span>HealRobo AI</span>
+          </div>
+        )}
+      </div>
+
+      {/* ── Keyframe Animations for Floating & Peeking ──────────────────── */}
       <style>{`
-        @keyframes healRoboFadeIn {
+        @keyframes robotGentleFloat {
+          0%, 100% {
+            transform: translateY(0px) rotate(0deg);
+          }
+          50% {
+            transform: translateY(-5px) rotate(1deg);
+          }
+        }
+        @keyframes robotGlowPulse {
+          0%, 100% {
+            opacity: 0.4;
+            transform: scale(0.95);
+          }
+          50% {
+            opacity: 0.9;
+            transform: scale(1.05);
+          }
+        }
+        @keyframes robotLeanRight {
+          0%, 100% {
+            transform: rotate(-14deg) translateX(3px);
+          }
+          50% {
+            transform: rotate(-8deg) translateX(-1px);
+          }
+        }
+        @keyframes robotLeanLeft {
+          0%, 100% {
+            transform: rotate(14deg) translateX(-3px);
+          }
+          50% {
+            transform: rotate(8deg) translateX(1px);
+          }
+        }
+        @keyframes robotLeanTop {
+          0%, 100% {
+            transform: rotate(0deg) translateY(3px);
+          }
+          50% {
+            transform: rotate(0deg) translateY(-1px);
+          }
+        }
+        @keyframes robotLeanBottom {
+          0%, 100% {
+            transform: rotate(0deg) translateY(-3px);
+          }
+          50% {
+            transform: rotate(0deg) translateY(1px);
+          }
+        }
+        @keyframes robotTooltipFade {
           from {
             opacity: 0;
-            transform: scale(0.88);
+            transform: translateY(4px);
           }
           to {
             opacity: 1;
-            transform: scale(1);
-          }
-        }
-        @keyframes healRoboFadeOut {
-          from {
-            opacity: 1;
-            transform: scale(1);
-          }
-          to {
-            opacity: 0;
-            transform: scale(0.88);
-          }
-        }
-        @media (max-width: 768px) {
-          .healrobo-floating-wrapper {
-            width: 140px !important;
-            height: 160px !important;
-          }
-          .healrobo-floating-wrapper > div:last-child {
-            height: 135px !important;
+            transform: translateY(0);
           }
         }
       `}</style>
-    </>,
+    </div>,
     document.body
   );
 };
 
 export default FloatingHealthRobot;
+

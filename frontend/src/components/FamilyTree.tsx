@@ -50,6 +50,25 @@ export const FamilyTree: React.FC<FamilyTreeProps> = ({ treeData, onRefresh, can
   const [ageAtDiagnosis, setAgeAtDiagnosis] = useState('');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(1.0);
+
+  const handleZoomIn = () => setZoomLevel((prev) => Math.min(prev + 0.15, 1.6));
+  const handleZoomOut = () => setZoomLevel((prev) => Math.max(prev - 0.15, 0.65));
+  const handleResetZoom = () => setZoomLevel(1.0);
+  const handleFitTree = () => setZoomLevel(0.85);
+
+  const getStatusInfo = (cond?: string) => {
+    if (!cond || cond.trim() === '' || cond.toLowerCase() === 'none' || cond.toLowerCase() === 'healthy') {
+      return { label: 'Healthy', color: '#10B981', bg: '#DCFCE7', border: '#86EFAC' };
+    }
+    const isHighRisk = ['cancer', 'heart attack', 'stroke', 'cardiovascular', 'renal failure', 'high risk'].some((c) =>
+      cond.toLowerCase().includes(c)
+    );
+    if (isHighRisk) {
+      return { label: 'High Risk', color: '#EF4444', bg: '#FEE2E2', border: '#FCA5A5' };
+    }
+    return { label: 'With Condition', color: '#D97706', bg: '#FEF3C7', border: '#FCD34D' };
+  };
 
   const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,25 +109,32 @@ export const FamilyTree: React.FC<FamilyTreeProps> = ({ treeData, onRefresh, can
 
   // Calculate statistics
   const totalMembers = treeData.members.length;
-  const membersWithConditions = treeData.members.filter(m => m.condition && m.condition.toLowerCase() !== 'none').length;
-  const uniqueConditions = new Set(treeData.members.filter(m => m.condition && m.condition.toLowerCase() !== 'none').map(m => m.condition)).size;
-  const averageAge = treeData.members.filter(m => m.age).length > 0 
-    ? Math.round(treeData.members.reduce((sum, m) => sum + (m.age || 0), 0) / treeData.members.filter(m => m.age).length)
-    : 0;
+  const membersWithConditions = treeData.members.filter(
+    (m) => m.condition && m.condition.toLowerCase() !== 'none'
+  ).length;
+  const uniqueConditions = new Set(
+    treeData.members
+      .filter((m) => m.condition && m.condition.toLowerCase() !== 'none')
+      .map((m) => m.condition)
+  ).size;
+  const averageAge =
+    treeData.members.filter((m) => m.age).length > 0
+      ? Math.round(
+          treeData.members.reduce((sum, m) => sum + (m.age || 0), 0) /
+            treeData.members.filter((m) => m.age).length
+        )
+      : 0;
 
   const renderNode = (m: FamilyMember) => {
-    const hasCondition = m.condition && m.condition.toLowerCase() !== 'none';
-    const conditionColor = hasCondition ? '#EF5350' : '#19B875';
-    const borderColor = hasCondition ? '#FECACA' : '#D1FAE5';
-    const bgColor = hasCondition ? '#FEF2F2' : '#F0FDF4';
-    
+    const status = getStatusInfo(m.condition);
+
     return (
-      <div 
-        key={m.id} 
+      <div
+        key={m.id}
         className="tree-node"
         style={{
-          background: bgColor,
-          border: `2px solid ${borderColor}`,
+          background: status.bg,
+          border: `2px solid ${status.border}`,
           borderRadius: '14px',
           padding: '1rem 1.125rem',
           minWidth: '200px',
@@ -129,108 +155,140 @@ export const FamilyTree: React.FC<FamilyTreeProps> = ({ treeData, onRefresh, can
         onClick={() => setSelectedMember(m)}
       >
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.625rem' }}>
-          <div style={{ 
-            display: 'inline-flex', 
-            alignItems: 'center', 
-            gap: '0.4rem',
-            background: hasCondition ? '#FEE2E2' : '#D1FAE5',
-            padding: '0.25rem 0.625rem',
-            borderRadius: '6px',
-          }}>
-            
-            <User size={12} color={conditionColor} />
-            <span style={{ 
-              fontSize: '0.7rem', 
-              textTransform: 'uppercase', 
-              color: conditionColor, 
-              fontWeight: 800,
-              letterSpacing: '0.04em',
-            }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.625rem' }}>
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              background: 'rgba(255, 255, 255, 0.7)',
+              padding: '0.25rem 0.625rem',
+              borderRadius: '6px',
+            }}
+          >
+            <User size={12} color={status.color} />
+            <span
+              style={{
+                fontSize: '0.7rem',
+                textTransform: 'uppercase',
+                color: status.color,
+                fontWeight: 800,
+                letterSpacing: '0.04em',
+              }}
+            >
               {m.relation}
             </span>
           </div>
-          {canEdit && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDeleteMember(m.id);
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <div
+              style={{
+                fontSize: '0.65rem',
+                fontWeight: 800,
+                padding: '0.2rem 0.5rem',
+                borderRadius: '999px',
+                background: status.color,
+                color: '#ffffff',
               }}
-              style={{ 
-                background: 'rgba(148, 163, 184, 0.1)', 
-                border: '1px solid #E2E8F0', 
-                borderRadius: '6px',
-                color: '#64748B', 
-                cursor: 'pointer', 
-                padding: '0.25rem',
-                display: 'flex',
-                alignItems: 'center',
-              }}
-              title="Delete"
             >
-              <Trash2 size={13} />
-            </button>
-          )}
+              {status.label}
+            </div>
+
+            {canEdit && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteMember(m.id);
+                }}
+                style={{
+                  background: 'rgba(148, 163, 184, 0.1)',
+                  border: '1px solid #E2E8F0',
+                  borderRadius: '6px',
+                  color: '#64748B',
+                  cursor: 'pointer',
+                  padding: '0.25rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+                title="Delete"
+              >
+                <Trash2 size={13} />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Name */}
-        <div style={{ 
-          fontSize: '1.05rem', 
-          fontWeight: 800, 
-          color: '#0F1B3D',
-          marginBottom: '0.625rem',
-          lineHeight: 1.2,
-        }}>
+        <div
+          style={{
+            fontSize: '1.05rem',
+            fontWeight: 800,
+            color: '#0F1B3D',
+            marginBottom: '0.625rem',
+            lineHeight: 1.2,
+          }}
+        >
           {m.name}
         </div>
 
         {/* Age */}
         {m.age && (
-          <div style={{ 
-            fontSize: '0.8rem', 
-            color: '#64748B',
-            marginBottom: '0.5rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.3rem',
-          }}>
+          <div
+            style={{
+              fontSize: '0.8rem',
+              color: '#64748B',
+              marginBottom: '0.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.3rem',
+            }}
+          >
             <span style={{ fontWeight: 600 }}>Age:</span> {m.age} years
           </div>
         )}
 
         {/* Divider */}
-        <div style={{ 
-          height: '1px', 
-          background: borderColor, 
-          margin: '0.625rem 0',
-        }}></div>
+        <div
+          style={{
+            height: '1px',
+            background: status.border,
+            margin: '0.625rem 0',
+          }}
+        />
 
         {/* Condition */}
         <div style={{ marginBottom: '0.375rem' }}>
-          <div style={{ 
-            fontSize: '0.73rem', 
-            fontWeight: 700,
-            color: '#64748B',
-            textTransform: 'uppercase',
-            letterSpacing: '0.04em',
-            marginBottom: '0.3rem',
-          }}>
+          <div
+            style={{
+              fontSize: '0.73rem',
+              fontWeight: 700,
+              color: '#64748B',
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              marginBottom: '0.3rem',
+            }}
+          >
             Health Condition
           </div>
-          <div style={{ 
-            fontSize: '0.875rem',
-            fontWeight: 700,
-            color: conditionColor,
-            lineHeight: 1.3,
-          }}>
+          <div
+            style={{
+              fontSize: '0.875rem',
+              fontWeight: 700,
+              color: status.color,
+              lineHeight: 1.3,
+            }}
+          >
             {m.condition || 'None reported'}
           </div>
           {m.ageAtDiagnosis && (
-            <div style={{ 
-              fontSize: '0.75rem', 
-              color: '#94A3B8',
-              marginTop: '0.25rem',
-            }}>
+            <div
+              style={{
+                fontSize: '0.75rem',
+                color: '#94A3B8',
+                marginTop: '0.25rem',
+              }}
+            >
               Diagnosed at age {m.ageAtDiagnosis}
             </div>
           )}
@@ -238,32 +296,36 @@ export const FamilyTree: React.FC<FamilyTreeProps> = ({ treeData, onRefresh, can
 
         {/* Notes preview */}
         {m.notes && (
-          <div style={{
-            fontSize: '0.75rem',
-            color: '#64748B',
-            marginTop: '0.5rem',
-            padding: '0.5rem',
-            background: 'rgba(255,255,255,0.6)',
-            borderRadius: '6px',
-            lineHeight: 1.4,
-            maxHeight: '2.8em',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}>
+          <div
+            style={{
+              fontSize: '0.75rem',
+              color: '#64748B',
+              marginTop: '0.5rem',
+              padding: '0.5rem',
+              background: 'rgba(255,255,255,0.6)',
+              borderRadius: '6px',
+              lineHeight: 1.4,
+              maxHeight: '2.8em',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
             {m.notes}
           </div>
         )}
 
         {/* View details indicator */}
-        <div style={{
-          marginTop: '0.625rem',
-          fontSize: '0.75rem',
-          color: '#1677E8',
-          fontWeight: 600,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.3rem',
-        }}>
+        <div
+          style={{
+            marginTop: '0.625rem',
+            fontSize: '0.75rem',
+            color: '#1677E8',
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.3rem',
+          }}
+        >
           <Eye size={12} /> Click to view details
         </div>
       </div>
@@ -642,8 +704,127 @@ export const FamilyTree: React.FC<FamilyTreeProps> = ({ treeData, onRefresh, can
         </div>
       )}
 
-      {/* Visual Family Tree Generations */}
-      <div className="card" style={{ overflowX: 'auto', padding: '2rem 1.5rem', background: '#fafbfc' }}>
+      {/* Visual Family Tree Controls & Container */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          background: '#ffffff',
+          padding: '0.75rem 1.25rem',
+          borderRadius: '12px 12px 0 0',
+          border: '1px solid #e2e8f0',
+          borderBottom: 'none',
+        }}
+      >
+        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <span>Pedigree View</span>
+          <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 500 }}>({Math.round(zoomLevel * 100)}%)</span>
+        </div>
+
+        {/* Compact Controls (+, -, Fit Tree, Reset View) */}
+        <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+          <button
+            type="button"
+            onClick={handleZoomIn}
+            title="Zoom In"
+            style={{
+              background: '#f1f5f9',
+              border: '1px solid #cbd5e1',
+              borderRadius: '6px',
+              width: '32px',
+              height: '32px',
+              fontWeight: 800,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '1.1rem',
+              color: '#0f172a',
+            }}
+          >
+            +
+          </button>
+          <button
+            type="button"
+            onClick={handleZoomOut}
+            title="Zoom Out"
+            style={{
+              background: '#f1f5f9',
+              border: '1px solid #cbd5e1',
+              borderRadius: '6px',
+              width: '32px',
+              height: '32px',
+              fontWeight: 800,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '1.1rem',
+              color: '#0f172a',
+            }}
+          >
+            −
+          </button>
+          <button
+            type="button"
+            onClick={handleFitTree}
+            title="Fit Tree"
+            style={{
+              background: '#f1f5f9',
+              border: '1px solid #cbd5e1',
+              borderRadius: '6px',
+              padding: '0 0.6rem',
+              height: '32px',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              color: '#0f172a',
+            }}
+          >
+            Fit Tree
+          </button>
+          <button
+            type="button"
+            onClick={handleResetZoom}
+            title="Reset View"
+            style={{
+              background: '#f1f5f9',
+              border: '1px solid #cbd5e1',
+              borderRadius: '6px',
+              padding: '0 0.6rem',
+              height: '32px',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              color: '#0f172a',
+            }}
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+
+      <div
+        className="card"
+        style={{
+          overflowX: 'auto',
+          overflowY: 'hidden',
+          padding: '2rem 1.5rem',
+          background: '#fafbfc',
+          borderRadius: '0 0 16px 16px',
+          borderTop: 'none',
+          touchAction: 'pan-x pan-y',
+        }}
+      >
+        <div
+          style={{
+            transform: `scale(${zoomLevel})`,
+            transformOrigin: 'top center',
+            transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+            minWidth: '580px',
+          }}
+        >
         {/* Generation 1: Grandparents */}
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.75rem' }}>
@@ -794,7 +975,9 @@ export const FamilyTree: React.FC<FamilyTreeProps> = ({ treeData, onRefresh, can
             </div>
           </>
         )}
+        </div>
       </div>
     </div>
   );
 };
+

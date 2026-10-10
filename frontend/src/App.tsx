@@ -2,6 +2,8 @@ import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
+import FloatingHealthRobot from './components/FloatingHealthRobot';
+import { SmartHealthAIPanel } from './components/SmartHealthAIPanel';
 
 // Lazy load all pages for code splitting
 const LandingPage = lazy(() => import('./pages/public/LandingPage').then(m => ({ default: m.LandingPage })));
@@ -52,6 +54,8 @@ const AppContent: React.FC = () => {
   // Patient Card & Family data cache
   const [cardData, setCardData] = useState<any>(null);
   const [familyData, setFamilyData] = useState<any>(null);
+  const [isAIAssistantOpen, setIsAIAssistantOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // Set default portal landing tab on authentication
   useEffect(() => {
@@ -184,12 +188,19 @@ const AppContent: React.FC = () => {
         onSelectTab={(t) => setCurrentTab(t)}
         mobileOpen={mobileOpen}
         onCloseMobile={() => setMobileOpen(false)}
+        collapsed={isSidebarCollapsed}
       />
 
       {/* Main Content Area */}
-      <div className="main-content">
+      <div className={`main-content ${isSidebarCollapsed ? 'collapsed' : ''}`}>
         <Navbar
-          onToggleMobileSidebar={() => setMobileOpen(!mobileOpen)}
+          onToggleMobileSidebar={() => {
+            if (window.innerWidth <= 768) {
+              setMobileOpen(!mobileOpen);
+            } else {
+              setIsSidebarCollapsed(!isSidebarCollapsed);
+            }
+          }}
           onNavigate={(action) => {
             if (action === 'profile') {
               setCurrentTab('profile');
@@ -324,7 +335,7 @@ const AppContent: React.FC = () => {
       {/* Mobile Bottom Bar Navigation (Target Reference Specification: 5 Items per Role) */}
       <nav className="mobile-bottom-nav no-print">
         <div className="mobile-bottom-nav-items">
-          {/* Patient Role Navigation */}
+          {/* Patient Role Navigation (Clean 4 Items) */}
           {user?.role === 'PATIENT' && (
             <>
               <button 
@@ -347,13 +358,6 @@ const AppContent: React.FC = () => {
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                 Appts
-              </button>
-              <button 
-                className={`mobile-nav-btn ${currentTab === 'ai-assistant' ? 'active' : ''}`}
-                onClick={() => setCurrentTab('ai-assistant')}
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2a10 10 0 1 0 10 10H12V2z"/><path d="M12 12L2.1 12"/></svg>
-                AI
               </button>
               <button 
                 className={`mobile-nav-btn ${currentTab === 'profile' ? 'active' : ''}`}
@@ -448,6 +452,18 @@ const AppContent: React.FC = () => {
           )}
         </div>
       </nav>
+
+      {/* Floating SmartHealth AI Robot & Assistant Panel */}
+      {user?.role === 'PATIENT' && (
+        <>
+          <FloatingHealthRobot onOpenAssistant={() => setIsAIAssistantOpen(true)} />
+          <SmartHealthAIPanel
+            isOpen={isAIAssistantOpen}
+            onClose={() => setIsAIAssistantOpen(false)}
+            onNavigate={(tab) => setCurrentTab(tab)}
+          />
+        </>
+      )}
     </div>
   );
 };
