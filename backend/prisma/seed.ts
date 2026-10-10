@@ -29,37 +29,37 @@ async function main() {
   const doctorPasswordHash = await bcrypt.hash('Doctor@123', 10);
   const patientPasswordHash = await bcrypt.hash('Patient@123', 10);
 
-  // 1. Create Hospitals
+  // 1. Create Hospitals in Kopargaon & Shirdi Belt
   const hospitalCentral = await prisma.hospital.create({
     data: {
-      name: 'Metro Central Multi-Specialty Hospital',
-      address: '100 Medical Enclave, Downtown Central',
-      district: 'Downtown Central',
-      lat: 12.9800,
-      lng: 77.6100,
-      contactPhone: '+91 80 2234 5000',
+      name: 'Kopargaon Rural & General Hospital',
+      address: 'Near Municipal Council, Main Road, Kopargaon',
+      district: 'Kopargaon',
+      lat: 19.8917,
+      lng: 74.4789,
+      contactPhone: '+91 2423 222100',
     },
   });
 
   const clinicRiverside = await prisma.hospital.create({
     data: {
-      name: 'Riverside Community Health Clinic',
-      address: '42 Riverbank Road, Riverside District',
-      district: 'Riverside District',
-      lat: 12.9716,
-      lng: 77.5946,
-      contactPhone: '+91 80 2234 5001',
+      name: 'Shirdi Sai Sansthan Super Specialty Hospital',
+      address: 'Ahmednagar-Manmad Road, Shirdi',
+      district: 'Shirdi',
+      lat: 19.7645,
+      lng: 74.4762,
+      contactPhone: '+91 2423 258500',
     },
   });
 
   const hospitalGreenValley = await prisma.hospital.create({
     data: {
-      name: 'Green Valley Medical Center',
-      address: '77 Garden Boulevard, Green Valley',
-      district: 'Green Valley',
-      lat: 12.9250,
-      lng: 77.5850,
-      contactPhone: '+91 80 2234 5002',
+      name: 'Rahata Sub-District Healthcare Center',
+      address: 'Nagar-Manmad Highway, Rahata',
+      district: 'Rahata',
+      lat: 19.7125,
+      lng: 74.4842,
+      contactPhone: '+91 2423 243200',
     },
   });
 
@@ -160,10 +160,10 @@ async function main() {
       dob: new Date('1988-06-15'),
       gender: 'MALE',
       bloodGroup: 'O+',
-      address: 'Flat 402, Sunshine Apartments, 14th Cross, Riverside District',
-      district: 'Riverside District',
-      lat: 12.9716,
-      lng: 77.5946,
+      address: 'Near Godavari River Bank, Tilak Nagar, Kopargaon',
+      district: 'Kopargaon',
+      lat: 19.8917,
+      lng: 74.4789,
       emergencyContactName: 'Sunita Verma (Mother)',
       emergencyContactPhone: '+91 99000 99887',
       allergies: 'Penicillin, Amoxicillin',
@@ -547,13 +547,13 @@ async function main() {
 
   console.log('Created Primary Patient medical visits, prescriptions, and lab history.');
 
-  // 6. Create 55 Additional Realistic Patients across 5 Districts
+  // 6. Create 55 Additional Realistic Patients across Kopargaon, Shirdi & Rahata Belt
   const districts = [
-    { name: 'Riverside District', lat: 12.9716, lng: 77.5946 },
-    { name: 'Metro North', lat: 13.0358, lng: 77.5970 },
-    { name: 'Green Valley', lat: 12.9250, lng: 77.5850 },
-    { name: 'Highland Park', lat: 12.9600, lng: 77.6400 },
-    { name: 'Downtown Central', lat: 12.9800, lng: 77.6100 },
+    { name: 'Kopargaon', lat: 19.8917, lng: 74.4789 },
+    { name: 'Shirdi', lat: 19.7645, lng: 74.4762 },
+    { name: 'Rahata', lat: 19.7125, lng: 74.4842 },
+    { name: 'Sangamner', lat: 19.5772, lng: 74.2074 },
+    { name: 'Yeola', lat: 20.0422, lng: 74.4886 },
   ];
 
   const firstNames = ['Aarav', 'Vivaan', 'Aditya', 'Vihaan', 'Arjun', 'Sai', 'Reyansh', 'Ayaan', 'Krishna', 'Ishaan', 'Shaurya', 'Atharv', 'Advik', 'Pranav', 'Advaith', 'Aayush', 'Rudra', 'Kabir', 'Ananya', 'Diya', 'Gauri', 'Isha', 'Kavya', 'Khushi', 'Meera', 'Navya', 'Pooja', 'Pari', 'Riya', 'Saanvi', 'Tanvi', 'Vanya', 'Zoya', 'Aditi', 'Tara', 'Sneha', 'Deepak', 'Suresh', 'Manish', 'Naveen', 'Rohan', 'Karan', 'Simran', 'Neha', 'Sunita', 'Geeta', 'Lakshmi', 'Ramesh', 'Vijay', 'Alok', 'Mohan', 'Sanjay', 'Sunil', 'Preeti', 'Swati'];
@@ -566,7 +566,7 @@ async function main() {
     const fn = firstNames[(i * 3) % firstNames.length];
     const ln = lastNames[(i * 7) % lastNames.length];
     const email = `${fn.toLowerCase()}.${ln.toLowerCase()}.${i}@example.com`;
-    const distIdx = i <= 32 ? 0 : (i % districts.length); // 50% in Riverside District to populate the outbreak!
+    const distIdx = i <= 32 ? 0 : (i % districts.length); // 50% in Kopargaon to populate local outbreak!
     const dist = districts[distIdx];
 
     const u = await prisma.user.create({
@@ -586,7 +586,7 @@ async function main() {
         dob: new Date(1955 + (i % 45), (i % 12), (i % 28) + 1),
         gender: i % 2 === 0 ? 'MALE' : 'FEMALE',
         bloodGroup: bloodGroups[i % bloodGroups.length],
-        address: `${10 + i}, Sector ${1 + (i % 8)}, ${dist.name}`,
+        address: `House ${10 + i}, ${dist.name} Belt`,
         district: dist.name,
         lat: dist.lat + (Math.random() - 0.5) * 0.03,
         lng: dist.lng + (Math.random() - 0.5) * 0.03,
@@ -600,29 +600,24 @@ async function main() {
     generatedPatients.push(p);
   }
 
-  console.log(`Seeded ${generatedPatients.length} realistic patients.`);
+  console.log(`Seeded ${generatedPatients.length} realistic patients in Kopargaon-Shirdi sector.`);
 
-  // 7. Seed Intentional Outbreak Data in "Riverside District"
-  // Generating 48 Malaria cases in Riverside District with strong weekly acceleration:
-  // Week -4: 5 cases
-  // Week -3: 11 cases
-  // Week -2: 22 cases
-  // Week -1: 38 cases
-  console.log('Generating intentional Malaria & Dengue outbreak in Riverside District...');
+  // 7. Seed Intentional Outbreak Data in Kopargaon & Shirdi
+  console.log('Generating intentional Dengue & Malaria outbreak in Kopargaon and Shirdi...');
 
   const outbreakConfigs = [
-    // Week -4 (28-22 days ago): 5 cases
-    { count: 5, daysAgoMin: 22, daysAgoMax: 28, disease: 'Malaria', district: 'Riverside District', lat: 12.9716, lng: 77.5946 },
-    // Week -3 (21-15 days ago): 11 cases
-    { count: 11, daysAgoMin: 15, daysAgoMax: 21, disease: 'Malaria', district: 'Riverside District', lat: 12.9720, lng: 77.5950 },
-    // Week -2 (14-8 days ago): 20 cases
-    { count: 20, daysAgoMin: 8, daysAgoMax: 14, disease: 'Malaria', district: 'Riverside District', lat: 12.9712, lng: 77.5938 },
-    // Week -1 (7-0 days ago): 35 cases
-    { count: 35, daysAgoMin: 0, daysAgoMax: 7, disease: 'Malaria', district: 'Riverside District', lat: 12.9718, lng: 77.5942 },
-    // A secondary Dengue cluster in Metro North (12 cases)
-    { count: 12, daysAgoMin: 0, daysAgoMax: 14, disease: 'Dengue', district: 'Metro North', lat: 13.0358, lng: 77.5970 },
-    // Sporadic Typhoid cases in Downtown Central (6 cases)
-    { count: 6, daysAgoMin: 0, daysAgoMax: 20, disease: 'Typhoid', district: 'Downtown Central', lat: 12.9800, lng: 77.6100 },
+    // Week -4 (28-22 days ago): 5 cases in Kopargaon
+    { count: 5, daysAgoMin: 22, daysAgoMax: 28, disease: 'Dengue', district: 'Kopargaon', lat: 19.8917, lng: 74.4789 },
+    // Week -3 (21-15 days ago): 11 cases in Kopargaon
+    { count: 11, daysAgoMin: 15, daysAgoMax: 21, disease: 'Dengue', district: 'Kopargaon', lat: 19.8925, lng: 74.4800 },
+    // Week -2 (14-8 days ago): 20 cases in Kopargaon
+    { count: 20, daysAgoMin: 8, daysAgoMax: 14, disease: 'Dengue', district: 'Kopargaon', lat: 19.8910, lng: 74.4775 },
+    // Week -1 (7-0 days ago): 35 cases in Kopargaon
+    { count: 35, daysAgoMin: 0, daysAgoMax: 7, disease: 'Dengue', district: 'Kopargaon', lat: 19.8920, lng: 74.4795 },
+    // A secondary Malaria cluster in Shirdi (14 cases)
+    { count: 14, daysAgoMin: 0, daysAgoMax: 14, disease: 'Malaria', district: 'Shirdi', lat: 19.7645, lng: 74.4762 },
+    // Typhoid cases in Rahata (8 cases)
+    { count: 8, daysAgoMin: 0, daysAgoMax: 20, disease: 'Typhoid', district: 'Rahata', lat: 19.7125, lng: 74.4842 },
   ];
 
   let reportCount = 0;
@@ -630,7 +625,6 @@ async function main() {
     for (let j = 0; j < cfg.count; j++) {
       const daysAgo = cfg.daysAgoMin + Math.random() * (cfg.daysAgoMax - cfg.daysAgoMin);
       const repDate = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000);
-      const assignedPatient = generatedPatients[Math.floor(Math.random() * generatedPatients.length)];
 
       await prisma.diseaseReport.create({
         data: {
@@ -655,52 +649,52 @@ async function main() {
   await prisma.locationRisk.createMany({
     data: [
       {
-        district: 'Riverside District',
-        disease: 'Malaria',
+        district: 'Kopargaon',
+        disease: 'Dengue',
         totalCases: 71,
         activeCases: 35,
         weeklyGrowthRate: 75.0,
         riskLevel: 'HIGH_RISK',
-        hotspotClusterId: 'HOTSPOT-MAL-01',
-        aiInsight: 'CRITICAL OUTBREAK: Malaria cases in Riverside District escalated by +75% over the past 2 weeks (35 active cases). Geospatial DBSCAN clustering detected active vector transmission hotspot centered at lat 12.9718, lng 77.5942.',
-        recommendedAction: 'Deploy municipal vector fogging units and approve the recommended Community Malaria Screening Camp.',
+        hotspotClusterId: 'HOTSPOT-DEN-01',
+        aiInsight: 'CRITICAL OUTBREAK: Dengue cases in Kopargaon escalated by +75% over the past 2 weeks (35 active cases). Geospatial DBSCAN clustering detected active vector transmission hotspot centered at lat 19.8920, lng 74.4795 (Tilak Nagar / Godavari river bank).',
+        recommendedAction: 'Deploy municipal vector fogging units and approve the recommended Community Dengue Screening Camp.',
         lastEvaluatedAt: new Date(),
       },
       {
-        district: 'Metro North',
-        disease: 'Dengue',
-        totalCases: 16,
-        activeCases: 9,
+        district: 'Shirdi',
+        disease: 'Malaria',
+        totalCases: 18,
+        activeCases: 14,
         weeklyGrowthRate: 45.0,
         riskLevel: 'WARNING',
-        hotspotClusterId: 'HOTSPOT-DEN-02',
-        aiInsight: 'SURVEILLANCE WARNING: Emerging Dengue fever cluster in Metro North (9 cases this week, +45% growth). Early clinical warning flag triggered.',
+        hotspotClusterId: 'HOTSPOT-MAL-02',
+        aiInsight: 'SURVEILLANCE WARNING: Emerging Malaria fever cluster in Shirdi (14 cases this week, +45% growth). Early clinical warning flag triggered.',
         recommendedAction: 'Broadcast community mosquito avoidance advisory and monitor platelet surveillance.',
         lastEvaluatedAt: new Date(),
       },
       {
-        district: 'Downtown Central',
+        district: 'Rahata',
         disease: 'Typhoid',
-        totalCases: 9,
+        totalCases: 10,
         activeCases: 4,
         weeklyGrowthRate: 15.0,
         riskLevel: 'NORMAL',
-        aiInsight: 'Baseline sporadic Typhoid presentations in Downtown Central. Parameters within acceptable municipal threshold.',
+        aiInsight: 'Baseline sporadic Typhoid presentations in Rahata. Parameters within acceptable municipal threshold.',
         recommendedAction: 'Routine water quality testing and food hygiene enforcement.',
         lastEvaluatedAt: new Date(),
       },
     ],
   });
 
-  // Active Community Alert for Riverside District
+  // Active Community Alert for Kopargaon
   await prisma.communityAlert.create({
     data: {
-      district: 'Riverside District',
-      disease: 'Malaria',
+      district: 'Kopargaon',
+      disease: 'Dengue',
       riskLevel: 'HIGH_RISK',
-      title: '🚨 High-Risk Malaria Outbreak Alert in Riverside District',
-      message: 'Active epidemiological surveillance indicates a significant localized escalation in Malaria cases across Riverside District. Residents are advised to take urgent mosquito bite precautions.',
-      precautions: '1. Use DEET/Picaridin mosquito repellents and sleep under permethrin-treated bed nets.\n2. Inspect containers, flowerpots, and drains; remove standing water.\n3. Wear light-colored, long-sleeved clothing.\n4. Seek immediate medical evaluation if cyclical fever, chills, or headache develop.',
+      title: '🚨 High-Risk Dengue Outbreak Alert in Kopargaon',
+      message: 'Active epidemiological surveillance indicates a significant localized escalation in Dengue cases across Kopargaon (Godavari river corridor). Residents are advised to take urgent mosquito bite precautions.',
+      precautions: '1. Use DEET/Picaridin mosquito repellents and sleep under bed nets.\n2. Inspect containers, flowerpots, and drains; remove standing water.\n3. Wear light-colored, long-sleeved clothing.\n4. Seek immediate medical evaluation if high fever, joint pain, or rash develops.',
       isActive: true,
       createdAt: new Date(),
     },
@@ -709,14 +703,14 @@ async function main() {
   // Recommended Community Health Camp
   await prisma.healthCamp.create({
     data: {
-      district: 'Riverside District',
-      venue: 'Riverside Municipal Civic Center, Sector 4',
-      targetDisease: 'Malaria',
+      district: 'Kopargaon',
+      venue: 'Kopargaon Municipal Secondary School & Community Center',
+      targetDisease: 'Dengue',
       campDate: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000),
       capacity: 300,
       doctorsAssigned: 'Dr. Priya Nair, Dr. Rajesh Sharma (Epidemiology Response Taskforce)',
       status: 'RECOMMENDED',
-      recommendationReason: 'Automated AI recommendation: High-density DBSCAN cluster (35 active cases) detected in Riverside District. Rapid community screening, rapid antigen tests (RDTs), and preventative education required.',
+      recommendationReason: 'Automated AI recommendation: High-density DBSCAN cluster (35 active cases) detected in Kopargaon. Rapid community screening, NS1 antigen testing, and preventative education required.',
       screenedCount: 0,
       createdAt: new Date(),
     },
@@ -727,12 +721,12 @@ async function main() {
     data: [
       {
         userId: primaryPatient.userId,
-        title: '🚨 Community Alert: Malaria Outbreak in Riverside District',
-        message: 'Public health authorities have identified an elevated cluster of Malaria cases in your district (Riverside District). Please review mosquito safety guidance.',
+        title: '🚨 Community Alert: Dengue Outbreak in Kopargaon',
+        message: 'Public health authorities have identified an elevated cluster of Dengue cases in your district (Kopargaon). Please review mosquito safety guidance.',
         type: 'DISEASE_ALERT',
         priority: 'CRITICAL',
-        district: 'Riverside District',
-        relatedDisease: 'Malaria',
+        district: 'Kopargaon',
+        relatedDisease: 'Dengue',
         isRead: false,
       },
       {
@@ -741,7 +735,7 @@ async function main() {
         message: 'Your recent blood pressure (146/92 mmHg) and fasting glucose (142 mg/dL) combined with family history show an elevated cardiometabolic risk score.',
         type: 'AI_HEALTH_FLAG',
         priority: 'WARNING',
-        district: 'Riverside District',
+        district: 'Kopargaon',
         isRead: false,
       },
     ],

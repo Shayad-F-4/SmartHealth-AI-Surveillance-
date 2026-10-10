@@ -44,11 +44,11 @@ export const LeafletDiseaseMap: React.FC = () => {
     if (!mapContainerRef.current) return;
 
     if (!mapInstanceRef.current) {
-      const map = L.map(mapContainerRef.current).setView([12.9716, 77.5946], 12);
+      const map = L.map(mapContainerRef.current).setView([19.8917, 74.4789], 12);
 
       // OpenStreetMap Tile Layer
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors | Smart Health Surveillance',
+        attribution: '&copy; OpenStreetMap contributors | Smart Health Surveillance (Kopargaon-Shirdi Zone)',
         maxZoom: 18,
       }).addTo(map);
 
@@ -206,12 +206,12 @@ export const LeafletDiseaseMap: React.FC = () => {
             value={districtFilter}
             onChange={(e) => setDistrictFilter(e.target.value)}
           >
-            <option value="ALL">All Districts</option>
-            <option value="Riverside District">Riverside District (Outbreak Zone)</option>
-            <option value="Metro North">Metro North</option>
-            <option value="Green Valley">Green Valley</option>
-            <option value="Highland Park">Highland Park</option>
-            <option value="Downtown Central">Downtown Central</option>
+            <option value="ALL">All Districts / Talukas</option>
+            <option value="Kopargaon">Kopargaon (Outbreak Zone)</option>
+            <option value="Shirdi">Shirdi (High Alert)</option>
+            <option value="Rahata">Rahata</option>
+            <option value="Sangamner">Sangamner</option>
+            <option value="Yeola">Yeola</option>
           </select>
         </div>
       </div>

@@ -36,7 +36,22 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, onToggleMobileSideba
         async (pos) => {
           try {
             const { latitude, longitude } = pos.coords;
-            setCurrentLocation(`Live (${latitude.toFixed(1)}°, ${longitude.toFixed(1)}°)`);
+            // Fetch human-readable city/district name via reverse geocoding
+            const geoRes = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=14`
+            );
+            const geoData = await geoRes.json();
+            const areaName =
+              geoData?.address?.city ||
+              geoData?.address?.town ||
+              geoData?.address?.village ||
+              geoData?.address?.suburb ||
+              geoData?.address?.county ||
+              user?.patient?.district ||
+              'Kopargaon';
+
+            setCurrentLocation(`${areaName} (${latitude.toFixed(2)}°, ${longitude.toFixed(2)}°)`);
+
             const res = await fetch(
               `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`
             );
@@ -48,11 +63,11 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, onToggleMobileSideba
               });
             }
           } catch {
-            // silent fallback
+            setCurrentLocation(user?.patient?.district || 'Kopargaon');
           }
         },
         () => {
-          setCurrentLocation(user?.patient?.district || 'Central District');
+          setCurrentLocation(user?.patient?.district || 'Kopargaon');
         }
       );
     }
