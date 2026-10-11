@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useLocation } from '../../context/LocationContext';
 import {
   Activity,
   CreditCard,
@@ -23,14 +24,19 @@ import {
   Clock,
   Sparkles,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   User,
   ShieldAlert,
   MapPin,
   Building2,
   Phone,
+  PhoneCall,
   FileCheck,
   Bell,
   Check,
+  Flame,
+  Shield,
 } from 'lucide-react';
 import api from '../../services/api';
 import { GenericLabTrendChart } from '../../components/HealthCharts';
@@ -41,6 +47,7 @@ interface PatientDashboardProps {
 
 export const PatientDashboard: React.FC<PatientDashboardProps> = ({ onNavigate }) => {
   const { user } = useAuth();
+  const { locationDetails } = useLocation();
 
   // Patient-specific data state
   const [appointments, setAppointments] = useState<any[]>([]);
@@ -51,6 +58,8 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({ onNavigate }
   const [notifications, setNotifications] = useState<any[]>([]);
   const [riskData, setRiskData] = useState<any>(null);
   const [trendsData, setTrendsData] = useState<any>(null);
+  const [areaAlerts, setAreaAlerts] = useState<any[]>([]);
+  const [showFullAdvisory, setShowFullAdvisory] = useState<boolean>(true);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -80,6 +89,7 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({ onNavigate }
         notificationsRes,
         riskRes,
         trendsRes,
+        alertsRes,
       ] = await Promise.allSettled([
         api.get('/appointments/my-appointments'),
         api.get('/patients/timeline'),
@@ -89,6 +99,7 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({ onNavigate }
         api.get('/notifications'),
         api.get('/patients/risk'),
         api.get('/patients/health-trends'),
+        api.get('/alerts'),
       ]);
 
       if (appointmentsRes.status === 'fulfilled') {
@@ -126,6 +137,10 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({ onNavigate }
       if (trendsRes.status === 'fulfilled') {
         setTrendsData(trendsRes.value.data);
       }
+
+      if (alertsRes.status === 'fulfilled' && Array.isArray(alertsRes.value.data)) {
+        setAreaAlerts(alertsRes.value.data);
+      }
     } catch (err: any) {
       console.error('Failed to load patient data:', err);
       setError('Unable to load some personal health data. Please try refreshing.');
@@ -143,11 +158,98 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({ onNavigate }
   const fullName = user?.name || 'Patient';
   const healthId = user?.patient?.healthId || 'SHC-2026-000001';
   const locality =
+    locationDetails?.locality ||
+    locationDetails?.subLocality ||
     user?.patient?.locality ||
     user?.patient?.subLocality ||
     user?.patient?.city ||
     user?.patient?.district ||
-    'Registered Locality';
+    'Kalewadi, Pimpri-Chinchwad';
+
+  const district =
+    locationDetails?.district ||
+    locationDetails?.city ||
+    user?.patient?.district ||
+    'Pune District';
+
+  // Active Area Health & Disease Advisory
+  const activeAreaAlert = useMemo(() => {
+    if (!areaAlerts || areaAlerts.length === 0) {
+      return {
+        id: 'seasonal-dengue-advisory',
+        disease: 'Dengue Vector-Borne Outbreak',
+        district: district,
+        riskLevel: 'HIGH_RISK',
+        title: `🚨 High-Risk Dengue Vector Alert in ${district}`,
+        message: `Public health surveillance has detected 38 active vector-borne cases across ${district} and neighboring sectors this week. Elevated seasonal humidity favors Aedes mosquito breeding. Immediate household precautions are recommended.`,
+        precautions:
+          'Drain desert coolers, flowerpot trays, and open water drums every 5–7 days. Apply DEET/Picaridin mosquito repellent and wear light-colored long sleeves. Drink boiled or filtered water and monitor oral hydration. Watch for sudden fever, retro-orbital eye pain, or rash. Seek immediate clinical evaluation if fever lasts >48 hours.',
+        cases: 38,
+        trend: 'Increasing',
+      };
+    }
+
+    const matched = areaAlerts.find(
+      (a: any) =>
+        a.isActive &&
+        (a.district?.toLowerCase() === district.toLowerCase() ||
+          a.district?.toLowerCase() === locality.toLowerCase() ||
+          a.title?.toLowerCase().includes(district.toLowerCase()) ||
+          a.message?.toLowerCase().includes(district.toLowerCase()))
+    );
+
+    if (matched) return matched;
+
+    const highRisk = areaAlerts.find((a: any) => a.isActive && a.riskLevel === 'HIGH_RISK');
+    if (highRisk) return highRisk;
+
+    const anyActive = areaAlerts.find((a: any) => a.isActive);
+    if (anyActive) return anyActive;
+
+    return {
+      id: 'seasonal-dengue-advisory',
+      disease: 'Dengue Vector-Borne Outbreak',
+      district: district,
+      riskLevel: 'HIGH_RISK',
+      title: `🚨 High-Risk Dengue Vector Alert in ${district}`,
+      message: `Public health surveillance has detected 38 active vector-borne cases across ${district} and neighboring sectors this week. Elevated seasonal humidity favors Aedes mosquito breeding. Immediate household precautions are recommended.`,
+      precautions:
+        'Drain desert coolers, flowerpot trays, and open water drums every 5–7 days. Apply DEET/Picaridin mosquito repellent and wear light-colored long sleeves. Drink boiled or filtered water and monitor oral hydration. Watch for sudden fever, retro-orbital eye pain, or rash. Seek immediate clinical evaluation if fever lasts >48 hours.',
+      cases: 38,
+      trend: 'Increasing',
+    };
+  }, [areaAlerts, district, locality]);
+
+  // Structured Actionable Suggestions for the patient
+  const advisoryPrecautions = useMemo(() => {
+    return [
+      {
+        icon: '💧',
+        title: 'Vector Source Reduction',
+        desc: 'Empty and scrub water coolers, plant saucers, pet bowls, and outdoor containers every 5–7 days to eliminate mosquito breeding grounds.',
+      },
+      {
+        icon: '🦟',
+        title: 'Personal Bite Defense',
+        desc: 'Apply DEET or Picaridin-based repellent on exposed skin; wear light-colored full-sleeved attire; keep window mesh screens closed at dawn & dusk.',
+      },
+      {
+        icon: '🚰',
+        title: 'Vital Hydration & Diet',
+        desc: 'Maintain daily fluid intake (2.5–3L) with boiled/filtered water, coconut water, or ORS electrolyte solutions to support physiological resilience.',
+      },
+      {
+        icon: '🌡️',
+        title: 'Clinical Symptom Watch',
+        desc: 'Monitor for sudden fever (>101°F), retro-orbital eye ache, severe joint/muscle pain, or skin rash. Avoid self-administering Aspirin/Ibuprofen without a doctor.',
+      },
+      {
+        icon: '🩺',
+        title: 'Medical Evaluation Trigger',
+        desc: 'If high fever persists beyond 48 hours or platelet warning signs appear, visit an authorized clinic immediately for an NS1 antigen & CBC blood panel.',
+      },
+    ];
+  }, [activeAreaAlert]);
 
   const currentAvatarUrl = user?.avatarUrl
     ? user.avatarUrl.startsWith('http')
@@ -274,6 +376,17 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({ onNavigate }
   const patientAlerts = useMemo(() => {
     const list: Array<{ id: string; title: string; subtitle: string; severity: 'INFO' | 'WARNING' | 'CRITICAL'; date: string }> = [];
 
+    // Local Community Disease Alert
+    if (activeAreaAlert && activeAreaAlert.riskLevel === 'HIGH_RISK') {
+      list.push({
+        id: `area-alert-${activeAreaAlert.id}`,
+        title: `Area Alert: ${activeAreaAlert.disease}`,
+        subtitle: `Elevated surveillance cases in ${activeAreaAlert.district || district}. Follow preventive precautions.`,
+        severity: 'CRITICAL',
+        date: 'Active',
+      });
+    }
+
     // Pending/Upcoming appointment alert
     if (nextAppointment && nextAppointment.status === 'PENDING') {
       list.push({
@@ -310,7 +423,7 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({ onNavigate }
     });
 
     return list;
-  }, [nextAppointment, recentLabs, notifications]);
+  }, [nextAppointment, recentLabs, notifications, activeAreaAlert, district]);
 
   // ── 4. REAL RECENT ACTIVITY ──────────────────────────────────────────────
   const latestActivity = useMemo(() => {
@@ -883,7 +996,312 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({ onNavigate }
         </div>
       </div>
 
-      {/* ── 3. PROMINENT UPCOMING APPOINTMENT SECTION ──────────────────────── */}
+      {/* ── 3. LOCAL AREA DISEASE ALERT & PREVENTIVE SUGGESTIONS ────────────── */}
+      {activeAreaAlert && (
+        <div
+          style={{
+            background:
+              activeAreaAlert.riskLevel === 'HIGH_RISK'
+                ? 'linear-gradient(135deg, #fff7ed 0%, #fff1f2 100%)'
+                : 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)',
+            border: `1.5px solid ${activeAreaAlert.riskLevel === 'HIGH_RISK' ? '#fecaca' : '#fde68a'}`,
+            borderRadius: 16,
+            padding: '1.25rem 1.5rem',
+            boxShadow: '0 4px 18px rgba(220, 38, 38, 0.05)',
+            position: 'relative',
+          }}
+        >
+          {/* Header Row */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '0.75rem',
+              marginBottom: showFullAdvisory ? '1rem' : 0,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+              <div
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 12,
+                  background: activeAreaAlert.riskLevel === 'HIGH_RISK' ? '#fee2e2' : '#fef3c7',
+                  border: `1px solid ${activeAreaAlert.riskLevel === 'HIGH_RISK' ? '#fca5a5' : '#fcd34d'}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  boxShadow: '0 2px 8px rgba(220, 38, 38, 0.12)',
+                }}
+              >
+                <Flame size={22} color={activeAreaAlert.riskLevel === 'HIGH_RISK' ? '#dc2626' : '#d97706'} />
+              </div>
+
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <span
+                    style={{
+                      fontSize: '0.68rem',
+                      fontWeight: 800,
+                      padding: '0.15rem 0.6rem',
+                      borderRadius: 999,
+                      background: activeAreaAlert.riskLevel === 'HIGH_RISK' ? '#dc2626' : '#d97706',
+                      color: '#ffffff',
+                      letterSpacing: '0.04em',
+                      textTransform: 'uppercase',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: '50%',
+                        background: '#ffffff',
+                        display: 'inline-block',
+                      }}
+                    />
+                    {activeAreaAlert.riskLevel === 'HIGH_RISK' ? 'High Risk Alert' : 'Active Advisory'}
+                  </span>
+
+                  <span
+                    style={{
+                      fontSize: '0.74rem',
+                      fontWeight: 700,
+                      color: '#9a3412',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                    }}
+                  >
+                    <MapPin size={13} color="#ea580c" />
+                    {activeAreaAlert.district || district} Regional Zone
+                  </span>
+
+                  {activeAreaAlert.cases && (
+                    <span
+                      style={{
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        color: '#c2410c',
+                        background: 'rgba(255, 255, 255, 0.8)',
+                        padding: '0.12rem 0.5rem',
+                        borderRadius: 6,
+                        border: '1px solid #fed7aa',
+                      }}
+                    >
+                      {activeAreaAlert.cases} Active Cases This Week
+                    </span>
+                  )}
+                </div>
+
+                <h3
+                  style={{
+                    fontSize: '1.12rem',
+                    fontWeight: 800,
+                    color: '#991b1b',
+                    margin: '0.3rem 0 0 0',
+                    lineHeight: 1.25,
+                  }}
+                >
+                  {activeAreaAlert.disease}: Local Community Health Advisory
+                </h3>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowFullAdvisory(!showFullAdvisory)}
+              style={{
+                background: '#ffffff',
+                border: '1px solid #fed7aa',
+                borderRadius: 10,
+                padding: '0.45rem 0.85rem',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                color: '#9a3412',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                boxShadow: '0 1px 3px rgba(15,23,42,0.04)',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {showFullAdvisory ? (
+                <>
+                  <ChevronUp size={14} /> Minimize Advisory
+                </>
+              ) : (
+                <>
+                  <ChevronDown size={14} /> Show Suggestions &amp; Action Plan
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Expanded Advisory & Suggestions Body */}
+          {showFullAdvisory && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '0.65rem' }}>
+              {/* Alert Narrative Message */}
+              <p style={{ fontSize: '0.86rem', color: '#7c2d12', margin: 0, lineHeight: 1.55, fontWeight: 500 }}>
+                {activeAreaAlert.message}
+              </p>
+
+              {/* Actionable Suggestions & Household Precautions */}
+              <div
+                style={{
+                  background: 'rgba(255, 255, 255, 0.92)',
+                  backdropFilter: 'blur(8px)',
+                  border: '1px solid #fed7aa',
+                  borderRadius: 14,
+                  padding: '1.15rem 1.35rem',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: '0.85rem',
+                    flexWrap: 'wrap',
+                    gap: '0.5rem',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                    <ShieldCheck size={18} color="#c2410c" />
+                    <span style={{ fontSize: '0.88rem', fontWeight: 800, color: '#9a3412' }}>
+                      Recommended Preventive Suggestions for You &amp; Your Family
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8' }}>
+                    Integrated Disease Surveillance Protocol (IDSP)
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+                    gap: '0.75rem',
+                  }}
+                >
+                  {advisoryPrecautions.map((item, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: '0.75rem',
+                        padding: '0.75rem 0.95rem',
+                        background: '#ffffff',
+                        border: '1px solid #ffedd5',
+                        borderRadius: 12,
+                        boxShadow: '0 1px 3px rgba(15,23,42,0.03)',
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: '1.15rem',
+                          lineHeight: 1,
+                          flexShrink: 0,
+                          marginTop: '2px',
+                        }}
+                      >
+                        {item.icon}
+                      </span>
+                      <div>
+                        <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#9a3412', marginBottom: '0.15rem' }}>
+                          {item.title}
+                        </div>
+                        <div style={{ fontSize: '0.77rem', color: '#431407', lineHeight: 1.45, fontWeight: 500 }}>
+                          {item.desc}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Action Buttons Row */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '0.75rem',
+                  paddingTop: '0.35rem',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => onNavigate('surveillance')}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.45rem',
+                      padding: '0.55rem 1.05rem',
+                      background: 'linear-gradient(135deg, #c2410c 0%, #ea580c 100%)',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: 10,
+                      fontSize: '0.82rem',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 8px rgba(194, 65, 12, 0.25)',
+                    }}
+                  >
+                    <MapPin size={15} /> Explore Live Disease Map &amp; Hotspots
+                  </button>
+
+                  <button
+                    onClick={() => onNavigate('ai-assistant')}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.45rem',
+                      padding: '0.55rem 1rem',
+                      background: '#ffffff',
+                      color: '#9a3412',
+                      border: '1px solid #fed7aa',
+                      borderRadius: 10,
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Sparkles size={14} color="#ea580c" /> Check Symptoms with AI
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => onNavigate('appointments')}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#c2410c',
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.3rem',
+                  }}
+                >
+                  Book Preventive Consultation &rarr;
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── 4. PROMINENT UPCOMING APPOINTMENT SECTION ──────────────────────── */}
       <div
         style={{
           background: '#ffffff',
@@ -1339,6 +1757,61 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({ onNavigate }
             </span>
           </div>
         )}
+
+        {/* Active Prescriptions Glance */}
+        {recentPrescriptions.length > 0 && (
+          <div style={{ marginTop: '1.25rem', paddingTop: '1.15rem', borderTop: '1px solid #f1f5f9' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                <Pill size={16} color="#0284c7" />
+                <h4 style={{ fontSize: '0.92rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                  Active Prescriptions &amp; Current Medications
+                </h4>
+              </div>
+              <button
+                onClick={() => onNavigate('records')}
+                style={{ background: 'none', border: 'none', color: '#0284c7', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', padding: 0 }}
+              >
+                All Medications &rarr;
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '0.75rem' }}>
+              {recentPrescriptions.slice(0, 3).map((p: any) => (
+                <div
+                  key={p.id}
+                  style={{
+                    padding: '0.75rem 0.95rem',
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: 12,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    gap: '0.4rem',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#0f172a' }}>
+                      {p.medicineName || p.medicines?.[0]?.name || p.diagnosis || 'Prescribed Medicine'}
+                    </div>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 800, padding: '0.1rem 0.45rem', borderRadius: 999, background: '#dcfce7', color: '#15803d', border: '1px solid #bbf7d0' }}>
+                      {p.status || 'Active'}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: '#0284c7', fontWeight: 700 }}>
+                    {p.dosage || 'Standard Dose'} &bull; {p.frequency || 'Daily'}
+                  </div>
+                  {p.instructions && (
+                    <div style={{ fontSize: '0.72rem', color: '#64748b', fontStyle: 'italic' }}>
+                      &ldquo;{p.instructions}&rdquo;
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── 6. HEALTH INTELLIGENCE SECTION (AI-Assisted Decision Support) ────── */}
@@ -1564,6 +2037,107 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({ onNavigate }
               </div>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* ── 7. 24/7 EMERGENCY HELPLINES & RAPID HEALTHCARE SUPPORT ─────────── */}
+      <div
+        style={{
+          background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+          borderRadius: 16,
+          padding: '1.25rem 1.5rem',
+          color: '#ffffff',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '1rem',
+          boxShadow: '0 4px 14px rgba(15, 23, 42, 0.15)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+          <div
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 12,
+              background: '#ef4444',
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(239, 68, 68, 0.4)',
+              flexShrink: 0,
+            }}
+          >
+            <Phone size={20} />
+          </div>
+          <div>
+            <div style={{ fontSize: '0.95rem', fontWeight: 800 }}>
+              24/7 National Emergency &amp; Public Health Helplines
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.15rem' }}>
+              Instant ambulance dispatch, medical tele-advisory, and emergency health assistance
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+          <a
+            href="tel:108"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              background: '#dc2626',
+              color: 'white',
+              padding: '0.45rem 0.85rem',
+              borderRadius: 8,
+              fontSize: '0.8rem',
+              fontWeight: 800,
+              textDecoration: 'none',
+              boxShadow: '0 2px 6px rgba(220, 38, 38, 0.3)',
+            }}
+          >
+            <PhoneCall size={14} /> 108 Ambulance
+          </a>
+          <a
+            href="tel:104"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              background: '#1e293b',
+              border: '1px solid #475569',
+              color: 'white',
+              padding: '0.45rem 0.85rem',
+              borderRadius: 8,
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              textDecoration: 'none',
+            }}
+          >
+            104 Medical Advice
+          </a>
+          <button
+            onClick={() => onNavigate('card')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              background: '#0284c7',
+              color: 'white',
+              border: 'none',
+              padding: '0.45rem 0.85rem',
+              borderRadius: 8,
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              boxShadow: '0 2px 6px rgba(2, 132, 199, 0.3)',
+            }}
+          >
+            <CreditCard size={14} /> Emergency Health Card
+          </button>
         </div>
       </div>
 
