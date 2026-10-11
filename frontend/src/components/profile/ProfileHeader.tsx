@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Camera, CheckCircle2, CreditCard, Edit3, ShieldCheck, User, Clock, AlertCircle, X, XCircle, AlertTriangle } from 'lucide-react';
+import { Camera, CheckCircle2, CreditCard, Edit3, ShieldCheck, User, Clock, AlertCircle, X, XCircle, AlertTriangle, Crop } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
+import { BannerCropperModal } from './BannerCropperModal';
 
 interface ProfileHeaderProps {
   user: any;
@@ -12,6 +13,7 @@ interface ProfileHeaderProps {
 export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onEditClick, onViewCardClick }) => {
   const { refreshUser } = useAuth();
   const [uploading, setUploading] = useState(false);
+  const [isBannerModalOpen, setIsBannerModalOpen] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const role = user?.role || 'PATIENT';
@@ -95,33 +97,25 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onEditClick,
     }
   };
 
-  const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 15 * 1024 * 1024) {
-      setNotification({ type: 'error', text: 'Banner image size exceeds 15MB limit.' });
-      setTimeout(() => setNotification(null), 4000);
-      return;
-    }
-
+  const handleSaveCroppedBanner = async (blob: Blob) => {
     setUploading(true);
     setNotification(null);
     try {
       const formData = new FormData();
-      formData.append('banner', file);
+      formData.append('banner', blob, `banner-${Date.now()}.jpg`);
 
       await api.post('/auth/banner', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
       await refreshUser();
-      setNotification({ type: 'success', text: 'Profile header banner updated successfully!' });
+      setNotification({ type: 'success', text: 'Profile header banner cropped and updated successfully!' });
       setTimeout(() => setNotification(null), 4000);
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || err.response?.data?.message || err.message || 'Failed to upload banner image.';
       setNotification({ type: 'error', text: errorMsg });
       setTimeout(() => setNotification(null), 5000);
+      throw err;
     } finally {
       setUploading(false);
     }
@@ -202,28 +196,30 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onEditClick,
         />
 
         {/* Change Banner Trigger (Top-Left inside Banner) */}
-        <label
-          title="Change profile cover banner"
+        <button
+          type="button"
+          onClick={() => setIsBannerModalOpen(true)}
+          title="Preprocess & crop profile cover banner"
           style={{
-            background: 'rgba(15, 23, 42, 0.65)',
-            backdropFilter: 'blur(8px)',
-            border: '1px solid rgba(255, 255, 255, 0.3)',
-            borderRadius: '8px',
-            padding: '0.4rem 0.8rem',
+            background: 'rgba(15, 23, 42, 0.7)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.35)',
+            borderRadius: '9px',
+            padding: '0.45rem 0.85rem',
             color: 'white',
             fontSize: '0.78rem',
             fontWeight: 700,
             cursor: 'pointer',
             display: 'inline-flex',
             alignItems: 'center',
-            gap: '0.4rem',
+            gap: '0.45rem',
             zIndex: 4,
-            boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+            transition: 'all 0.15s ease',
           }}
         >
-          <Camera size={14} /> Change Cover
-          <input type="file" accept="image/*" onChange={handleBannerUpload} style={{ display: 'none' }} />
-        </label>
+          <Crop size={14} /> Crop & Change Cover
+        </button>
 
         {/* Top-Right Quick Card Link for Patients */}
         {isPatient && onViewCardClick && (
@@ -437,6 +433,16 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onEditClick,
           </button>
         </div>
       </div>
+
+      {/* Banner Preprocessing & Cropper Studio Modal */}
+      <BannerCropperModal
+        isOpen={isBannerModalOpen}
+        onClose={() => setIsBannerModalOpen(false)}
+        onSaveBannerBlob={handleSaveCroppedBanner}
+        currentBannerUrl={currentBannerUrl}
+        userRole={role}
+        userName={name}
+      />
     </div>
   );
 };

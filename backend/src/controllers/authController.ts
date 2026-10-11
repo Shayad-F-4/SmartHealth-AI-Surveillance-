@@ -574,7 +574,7 @@ export async function updateMe(req: AuthRequest, res: Response) {
       return res.status(401).json({ error: 'Unauthorized.' });
     }
 
-    const { name, phone, avatarUrl, currentPassword, newPassword } = req.body;
+    const { name, phone, avatarUrl, bannerUrl, currentPassword, newPassword } = req.body;
 
     // If changing password, verify current password
     if (newPassword) {
@@ -649,6 +649,7 @@ export async function updateMe(req: AuthRequest, res: Response) {
         ...(name !== undefined && { name }),
         ...(phone !== undefined && { phone }),
         ...(avatarUrl !== undefined && { avatarUrl }),
+        ...(bannerUrl !== undefined && { bannerUrl }),
       },
       include: {
         patient: true,
@@ -667,6 +668,7 @@ export async function updateMe(req: AuthRequest, res: Response) {
         role: updatedUser.role,
         phone: updatedUser.phone,
         avatarUrl: updatedUser.avatarUrl,
+        bannerUrl: updatedUser.bannerUrl,
         emailVerified: updatedUser.emailVerified,
         patient: updatedUser.patient ? {
           ...updatedUser.patient,
