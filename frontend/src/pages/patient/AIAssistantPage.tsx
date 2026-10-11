@@ -21,8 +21,6 @@ import {
 import api from '../../services/api';
 import { HealthAssistantAvatar3D } from '../../components/HealthAssistantAvatar3D';
 
-const FloatingHealthRobot = React.lazy(() => import('../../components/FloatingHealthRobot'));
-
 interface SourceItem {
   id: string;
   type:
@@ -500,10 +498,6 @@ export const AIAssistantPage: React.FC<{ patientId?: string; onNavigateTab?: (ta
         </div>
       </div>
 
-      {/* ── 3D Floating Health Robot (Bottom-Right Assistant) ───────────── */}
-      <React.Suspense fallback={null}>
-        <FloatingHealthRobot state={avatarState} onFocusChat={handleFocusChat} />
-      </React.Suspense>
     </div>
   );
 };
