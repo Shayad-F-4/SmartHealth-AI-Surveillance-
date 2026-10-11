@@ -71,13 +71,22 @@ const AppContent: React.FC = () => {
     }
 
     if (isAuthenticated && user) {
-      if (user.role === 'ADMIN') setCurrentTab('admin-dashboard');
-      else if (user.role === 'DOCTOR') setCurrentTab('doctor-dashboard');
-      else setCurrentTab('dashboard');
+      const entryTabs = ['landing', 'login', 'register'];
+      setCurrentTab((prevTab) => {
+        if (entryTabs.includes(prevTab)) {
+          if (user.role === 'ADMIN') return 'admin-dashboard';
+          if (user.role === 'DOCTOR') return 'doctor-dashboard';
+          return 'dashboard';
+        }
+        return prevTab;
+      });
     } else {
-      if (currentTab !== 'login' && currentTab !== 'register' && currentTab !== 'emergency-view') {
-        setCurrentTab('landing');
-      }
+      setCurrentTab((prevTab) => {
+        if (prevTab !== 'login' && prevTab !== 'register' && prevTab !== 'emergency-view') {
+          return 'landing';
+        }
+        return prevTab;
+      });
     }
   }, [isAuthenticated, user]);
 
@@ -247,14 +256,25 @@ const AppContent: React.FC = () => {
                 />
               )}
               {currentTab === 'ai-assistant' && <AIAssistantPage onNavigateTab={(t) => setCurrentTab(t)} />}
-              {currentTab === 'family' && familyData && (
-                <FamilyTree
-                  treeData={familyData}
-                  onRefresh={async () => {
-                    const res = await api.get('/family/tree');
-                    setFamilyData(res.data);
-                  }}
-                />
+              {currentTab === 'family' && (
+                familyData ? (
+                  <FamilyTree
+                    treeData={familyData}
+                    onRefresh={async () => {
+                      try {
+                        const res = await api.get('/family/tree');
+                        setFamilyData(res.data);
+                      } catch (err) {
+                        console.error('Failed to refresh family tree:', err);
+                      }
+                    }}
+                  />
+                ) : (
+                  <div style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>
+                    <div style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.5rem' }}>Loading Family Health Pedigree...</div>
+                    <div style={{ fontSize: '0.85rem' }}>Fetching multi-generational hereditary data...</div>
+                  </div>
+                )
               )}
               {currentTab === 'prescriptions' && (
                 <MedicalRecordsPage

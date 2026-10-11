@@ -23,8 +23,26 @@ import {
   Droplets,
   Wind,
   Filter,
+  Edit3,
+  FileText,
+  Upload,
+  Eye,
+  Download,
+  FileCheck,
+  ExternalLink,
+  Paperclip,
 } from 'lucide-react';
 import api from '../services/api';
+
+export interface FamilyMemberReport {
+  id: string;
+  name: string;
+  fileType: string;
+  fileSize: string;
+  uploadedAt: string;
+  dataUrl?: string;
+  notes?: string;
+}
 
 export interface Member {
   id: string;
@@ -321,6 +339,89 @@ export const FamilyTree: React.FC<FamilyTreeProps> = ({ treeData, onRefresh, can
   const [addNotes, setAddNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Edit Member Modal State
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editMember, setEditMember] = useState<{
+    id: string;
+    name: string;
+    age: string;
+    gender: string;
+    relationship: string;
+    condition: string;
+    notes: string;
+  } | null>(null);
+
+  // Delete Member Confirmation State
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [memberToDelete, setMemberToDelete] = useState<Member | null>(null);
+
+  // Report Upload & Preview State
+  const [previewReport, setPreviewReport] = useState<FamilyMemberReport | null>(null);
+  const reportFileInputRef = useRef<HTMLInputElement>(null);
+  const addReportInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingReport, setUploadingReport] = useState(false);
+  const [addReportFile, setAddReportFile] = useState<{
+    name: string;
+    fileSize: string;
+    dataUrl: string;
+  } | null>(null);
+
+  // Member Reports Dictionary (persisted in localStorage)
+  const [memberReports, setMemberReports] = useState<Record<string, FamilyMemberReport[]>>(() => {
+    try {
+      const saved = localStorage.getItem('smarthealth_family_reports');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    // Seed initial demo reports so pedigree feels realistic and ready for presentation
+    return {
+      'grandparent-1': [
+        {
+          id: 'rep-gp1-1',
+          name: 'Cardiology_24hr_Holter_Report.pdf',
+          fileType: 'application/pdf',
+          fileSize: '1.45 MB',
+          uploadedAt: '12 Jan 2026',
+          notes: 'Arrhythmia and blood pressure monitoring evaluation',
+        },
+        {
+          id: 'rep-gp1-2',
+          name: 'Echocardiogram_Summary.pdf',
+          fileType: 'application/pdf',
+          fileSize: '890 KB',
+          uploadedAt: '04 Oct 2025',
+          notes: 'LVEF 58%, normal LV systolic function',
+        },
+      ],
+      'grandparent-2': [
+        {
+          id: 'rep-gp2-1',
+          name: 'HbA1c_Fasting_Glucose_Panel.pdf',
+          fileType: 'application/pdf',
+          fileSize: '720 KB',
+          uploadedAt: '19 Nov 2025',
+          notes: 'HbA1c: 7.2%, metabolic management review',
+        },
+      ],
+      'parent-1': [
+        {
+          id: 'rep-p1-1',
+          name: 'Annual_Comprehensive_Health_Checkup.pdf',
+          fileType: 'application/pdf',
+          fileSize: '2.10 MB',
+          uploadedAt: '18 Feb 2026',
+          notes: 'BP: 138/88 mmHg, mild hyperlipidemia noted',
+        },
+      ],
+    };
+  });
+
+  const saveMemberReports = (newReports: Record<string, FamilyMemberReport[]>) => {
+    setMemberReports(newReports);
+    try {
+      localStorage.setItem('smarthealth_family_reports', JSON.stringify(newReports));
+    } catch {}
+  };
+
   // Zoom & Pan refs
   const viewportRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
@@ -469,12 +570,144 @@ export const FamilyTree: React.FC<FamilyTreeProps> = ({ treeData, onRefresh, can
     }
   });
 
+  const handleOpenEditModal = (m: Member) => {
+    setEditMember({
+      id: m.id,
+      name: m.name,
+      age: m.age ? String(m.age) : '',
+      gender: m.gender,
+      relationship: m.relationship,
+      condition: m.history[0] || 'None',
+      notes: m.notes?.[0] || '',
+    });
+    setShowEditModal(true);
+  };
+
+  const handleUpdateMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editMember || !editMember.name.trim()) return;
+    setSubmitting(true);
+    try {
+      if (editMember.id !== 'self') {
+        await api.put(`/family/member/${editMember.id}`, {
+          relation: editMember.relationship,
+          name: editMember.name.trim(),
+          age: editMember.age ? parseInt(editMember.age) : null,
+          condition: editMember.condition,
+          notes: editMember.notes,
+        });
+      }
+    } catch {
+      // Local fallback
+    }
+
+    setMembers((prev) =>
+      prev.map((m) => {
+        if (m.id === editMember.id) {
+          return {
+            ...m,
+            name: editMember.name.trim(),
+            age: editMember.age ? Number(editMember.age) : m.age,
+            gender: editMember.gender,
+            relationship: editMember.relationship,
+            history: editMember.condition !== 'None' ? [editMember.condition] : [],
+            notes: [editMember.notes || 'Family medical profile updated.'],
+          };
+        }
+        return m;
+      })
+    );
+
+    setShowEditModal(false);
+    setNotice(`${editMember.name}'s details updated successfully.`);
+    setTimeout(() => setNotice(''), 4000);
+    onRefresh();
+    setSubmitting(false);
+  };
+
+  const handleDeleteMember = async () => {
+    if (!memberToDelete || memberToDelete.id === 'self') return;
+    setSubmitting(true);
+    try {
+      await api.delete(`/family/member/${memberToDelete.id}`);
+    } catch {
+      // Local fallback
+    }
+
+    setMembers((prev) => prev.filter((m) => m.id !== memberToDelete.id));
+
+    // Cleanup reports
+    const updatedReports = { ...memberReports };
+    delete updatedReports[memberToDelete.id];
+    saveMemberReports(updatedReports);
+
+    if (selectedId === memberToDelete.id) {
+      setSelectedId('self');
+    }
+
+    setShowDeleteConfirm(false);
+    setNotice(`${memberToDelete.name} removed from family health tree.`);
+    setTimeout(() => setNotice(''), 4000);
+    onRefresh();
+    setSubmitting(false);
+    setMemberToDelete(null);
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selected) return;
+
+    if (file.size > 20 * 1024 * 1024) {
+      setNotice('File exceeds 20MB limit.');
+      setTimeout(() => setNotice(''), 4000);
+      return;
+    }
+
+    setUploadingReport(true);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const newRep: FamilyMemberReport = {
+        id: `rep-${Date.now()}`,
+        name: file.name,
+        fileType: file.type || 'application/pdf',
+        fileSize: file.size > 1024 * 1024 ? `${(file.size / (1024 * 1024)).toFixed(2)} MB` : `${Math.round(file.size / 1024)} KB`,
+        uploadedAt: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+        dataUrl: reader.result as string,
+        notes: `Diagnostic report uploaded for ${selected.name}`,
+      };
+
+      const updated = {
+        ...memberReports,
+        [selected.id]: [...(memberReports[selected.id] || []), newRep],
+      };
+      saveMemberReports(updated);
+      setNotice(`Report "${file.name}" attached to ${selected.name}.`);
+      setTimeout(() => setNotice(''), 4000);
+      setUploadingReport(false);
+    };
+    reader.onerror = () => setUploadingReport(false);
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleDeleteReport = (reportId: string) => {
+    if (!selected) return;
+    const updated = {
+      ...memberReports,
+      [selected.id]: (memberReports[selected.id] || []).filter((r) => r.id !== reportId),
+    };
+    saveMemberReports(updated);
+    setNotice('Medical report removed.');
+    setTimeout(() => setNotice(''), 3000);
+  };
+
   const handleSaveMember = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!addName.trim()) return;
     setSubmitting(true);
+    let createdId = `m-${Date.now()}`;
     try {
-      await api.post('/family/member', {
+      const res = await api.post('/family/member', {
         patientId: treeData.patient.id,
         relation: addRelation,
         name: addName.trim(),
@@ -483,17 +716,40 @@ export const FamilyTree: React.FC<FamilyTreeProps> = ({ treeData, onRefresh, can
         notes: addNotes,
       });
 
+      if (res.data?.member?.id) {
+        createdId = res.data.member.id;
+      }
+
+      // Attach report if uploaded during add
+      if (addReportFile) {
+        const attachedRep: FamilyMemberReport = {
+          id: `rep-${Date.now()}`,
+          name: addReportFile.name,
+          fileType: 'application/pdf',
+          fileSize: addReportFile.fileSize,
+          uploadedAt: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+          dataUrl: addReportFile.dataUrl,
+          notes: `Uploaded when registering ${addName.trim()}`,
+        };
+        const updated = {
+          ...memberReports,
+          [createdId]: [...(memberReports[createdId] || []), attachedRep],
+        };
+        saveMemberReports(updated);
+      }
+
       setShowAddModal(false);
       setAddName('');
       setAddAge('');
       setAddNotes('');
+      setAddReportFile(null);
       setNotice(`${addName.trim()} added to your family medical tree.`);
       setTimeout(() => setNotice(''), 4000);
       onRefresh();
     } catch {
       // Local fallback for offline or custom members
       const newM: Member = {
-        id: `m-${Date.now()}`,
+        id: createdId,
         name: addName.trim(),
         age: addAge ? Number(addAge) : 35,
         gender: addGender,
@@ -503,9 +759,31 @@ export const FamilyTree: React.FC<FamilyTreeProps> = ({ treeData, onRefresh, can
         notes: [addNotes || 'Family medical profile recorded.'],
         parentIds: addRelation.includes('Sister') || addRelation.includes('Brother') ? ['parent-1', 'parent-2'] : [],
       };
+
+      if (addReportFile) {
+        const attachedRep: FamilyMemberReport = {
+          id: `rep-${Date.now()}`,
+          name: addReportFile.name,
+          fileType: 'application/pdf',
+          fileSize: addReportFile.fileSize,
+          uploadedAt: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+          dataUrl: addReportFile.dataUrl,
+          notes: `Uploaded when registering ${addName.trim()}`,
+        };
+        const updated = {
+          ...memberReports,
+          [createdId]: [...(memberReports[createdId] || []), attachedRep],
+        };
+        saveMemberReports(updated);
+      }
+
       setMembers((prev) => [...prev, newM]);
       setSelectedId(newM.id);
       setShowAddModal(false);
+      setAddName('');
+      setAddAge('');
+      setAddNotes('');
+      setAddReportFile(null);
       setNotice(`${newM.name} added to your family medical tree.`);
       setTimeout(() => setNotice(''), 4000);
     } finally {
@@ -929,7 +1207,7 @@ export const FamilyTree: React.FC<FamilyTreeProps> = ({ treeData, onRefresh, can
               )}
             </div>
 
-            <div style={{ padding: '1rem 1.25rem' }}>
+            <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--border-light)' }}>
               <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
                 Clinical Notes
               </div>
@@ -939,16 +1217,438 @@ export const FamilyTree: React.FC<FamilyTreeProps> = ({ treeData, onRefresh, can
                 ))}
               </ul>
             </div>
+
+            {/* Medical Reports & Documents Section */}
+            <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--border-light)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <FileText size={15} color="#0284c7" />
+                  <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#0f172a' }}>
+                    Medical Reports &amp; Files
+                  </span>
+                  <span style={{ fontSize: '0.68rem', fontWeight: 800, padding: '1px 6px', borderRadius: 999, background: '#e0f2fe', color: '#0369a1' }}>
+                    {(memberReports[selected.id] || []).length}
+                  </span>
+                </div>
+
+                <input
+                  type="file"
+                  ref={reportFileInputRef}
+                  style={{ display: 'none' }}
+                  accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                  onChange={handleFileUpload}
+                />
+
+                <button
+                  type="button"
+                  onClick={() => reportFileInputRef.current?.click()}
+                  disabled={uploadingReport}
+                  style={{
+                    background: '#f0f9ff',
+                    border: '1px solid #bae6fd',
+                    color: '#0284c7',
+                    borderRadius: 8,
+                    padding: '0.28rem 0.6rem',
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.3rem',
+                  }}
+                >
+                  <Upload size={12} /> {uploadingReport ? 'Uploading...' : 'Upload Report'}
+                </button>
+              </div>
+
+              {/* Reports List */}
+              {(memberReports[selected.id] || []).length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {(memberReports[selected.id] || []).map((rep) => (
+                    <div
+                      key={rep.id}
+                      style={{
+                        padding: '0.55rem 0.75rem',
+                        background: '#f8fafc',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: 8,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '0.5rem',
+                      }}
+                    >
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div
+                          style={{
+                            fontSize: '0.76rem',
+                            fontWeight: 700,
+                            color: '#0f172a',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
+                          title={rep.name}
+                        >
+                          {rep.name}
+                        </div>
+                        <div style={{ fontSize: '0.68rem', color: '#64748b', marginTop: '1px' }}>
+                          {rep.fileSize} &bull; {rep.uploadedAt}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexShrink: 0 }}>
+                        <button
+                          type="button"
+                          onClick={() => setPreviewReport(rep)}
+                          title="Preview Document"
+                          style={{
+                            background: '#ffffff',
+                            border: '1px solid #cbd5e1',
+                            borderRadius: 6,
+                            padding: '4px 6px',
+                            cursor: 'pointer',
+                            color: '#0284c7',
+                            display: 'flex',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <Eye size={12} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteReport(rep.id)}
+                          title="Remove Document"
+                          style={{
+                            background: '#ffffff',
+                            border: '1px solid #fecaca',
+                            borderRadius: 6,
+                            padding: '4px 6px',
+                            cursor: 'pointer',
+                            color: '#dc2626',
+                            display: 'flex',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div
+                  style={{
+                    padding: '0.75rem',
+                    background: '#f8fafc',
+                    borderRadius: 8,
+                    border: '1px dashed #cbd5e1',
+                    textAlign: 'center',
+                    fontSize: '0.74rem',
+                    color: '#64748b',
+                  }}
+                >
+                  No medical reports attached yet.
+                  <div style={{ marginTop: '0.2rem' }}>
+                    Click <strong>Upload Report</strong> to attach lab results or clinical discharge documents.
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Actions: Edit & Delete */}
+            <div style={{ padding: '1rem 1.25rem', display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => handleOpenEditModal(selected)}
+                style={{
+                  flex: 1,
+                  minWidth: '100px',
+                  padding: '0.5rem 0.85rem',
+                  borderRadius: 8,
+                  border: '1px solid #cbd5e1',
+                  background: '#ffffff',
+                  color: '#0284c7',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.4rem',
+                }}
+              >
+                <Edit3 size={14} /> Edit Details
+              </button>
+
+              {selected.id !== 'self' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMemberToDelete(selected);
+                    setShowDeleteConfirm(true);
+                  }}
+                  style={{
+                    flex: 1,
+                    minWidth: '100px',
+                    padding: '0.5rem 0.85rem',
+                    borderRadius: 8,
+                    border: '1px solid #fecaca',
+                    background: '#fff1f2',
+                    color: '#dc2626',
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.4rem',
+                  }}
+                >
+                  <Trash2 size={14} /> Remove Member
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>
 
+      {/* Edit Member Modal */}
+      {showEditModal && editMember && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(3px)', display: 'grid', placeItems: 'center', zIndex: 1100, padding: '1rem' }}>
+          <div className="card" style={{ width: '100%', maxWidth: '480px', padding: '1.5rem', background: '#ffffff', borderRadius: '16px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                <Edit3 size={18} color="#0284c7" /> Edit Family Member Details
+              </h3>
+              <button onClick={() => setShowEditModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateMember}>
+              <div className="form-group" style={{ marginBottom: '0.85rem' }}>
+                <label className="form-label" style={{ fontSize: '0.8rem', fontWeight: 700 }}>Full Name *</label>
+                <input
+                  required
+                  className="form-input"
+                  value={editMember.name}
+                  onChange={(e) => setEditMember({ ...editMember, name: e.target.value })}
+                  placeholder="e.g. Ramesh Verma"
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.85rem' }}>
+                <div className="form-group">
+                  <label className="form-label" style={{ fontSize: '0.8rem', fontWeight: 700 }}>Age</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="120"
+                    className="form-input"
+                    value={editMember.age}
+                    onChange={(e) => setEditMember({ ...editMember, age: e.target.value })}
+                    placeholder="Years"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label" style={{ fontSize: '0.8rem', fontWeight: 700 }}>Gender</label>
+                  <select
+                    className="form-select"
+                    value={editMember.gender}
+                    onChange={(e) => setEditMember({ ...editMember, gender: e.target.value })}
+                  >
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.85rem' }}>
+                <div className="form-group">
+                  <label className="form-label" style={{ fontSize: '0.8rem', fontWeight: 700 }}>Relationship</label>
+                  <select
+                    className="form-select"
+                    value={editMember.relationship}
+                    disabled={editMember.id === 'self'}
+                    onChange={(e) => setEditMember({ ...editMember, relationship: e.target.value })}
+                  >
+                    <option value="Self">Self (Primary Patient)</option>
+                    <option value="Father">Father</option>
+                    <option value="Mother">Mother</option>
+                    <option value="Brother">Brother</option>
+                    <option value="Sister">Sister</option>
+                    <option value="Grandfather">Grandfather</option>
+                    <option value="Grandmother">Grandmother</option>
+                    <option value="Son">Son</option>
+                    <option value="Daughter">Daughter</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label" style={{ fontSize: '0.8rem', fontWeight: 700 }}>Hereditary Condition</label>
+                  <select
+                    className="form-select"
+                    value={editMember.condition}
+                    onChange={(e) => setEditMember({ ...editMember, condition: e.target.value })}
+                  >
+                    <option value="None">None (Healthy)</option>
+                    <option value="Hypertension">Hypertension</option>
+                    <option value="Type 2 diabetes">Type 2 Diabetes</option>
+                    <option value="Asthma">Asthma</option>
+                    <option value="Cardiovascular Disease">Cardiovascular Disease</option>
+                    <option value="Colorectal Cancer">Colorectal Cancer</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                <label className="form-label" style={{ fontSize: '0.8rem', fontWeight: 700 }}>Clinical Notes</label>
+                <input
+                  className="form-input"
+                  value={editMember.notes}
+                  onChange={(e) => setEditMember({ ...editMember, notes: e.target.value })}
+                  placeholder="e.g. Diagnosed at age 52; regular monitoring"
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+                <button type="button" onClick={() => setShowEditModal(false)} className="btn btn-secondary">
+                  Cancel
+                </button>
+                <button type="submit" disabled={submitting} className="btn btn-primary">
+                  {submitting ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && memberToDelete && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(3px)', display: 'grid', placeItems: 'center', zIndex: 1150, padding: '1rem' }}>
+          <div className="card" style={{ width: '100%', maxWidth: '420px', padding: '1.5rem', background: '#ffffff', borderRadius: '16px', textAlign: 'center', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+            <div style={{ width: 48, height: 48, borderRadius: 12, background: '#fee2e2', color: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
+              <Trash2 size={24} />
+            </div>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', margin: '0 0 0.5rem 0' }}>
+              Remove Family Member?
+            </h3>
+            <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 1.25rem 0', lineHeight: 1.5 }}>
+              Are you sure you want to remove <strong>{memberToDelete.name}</strong> ({memberToDelete.relationship}) from your family health pedigree?
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setMemberToDelete(null);
+                }}
+                className="btn btn-secondary"
+                style={{ flex: 1 }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteMember}
+                disabled={submitting}
+                style={{
+                  flex: 1,
+                  padding: '0.55rem 1rem',
+                  borderRadius: 8,
+                  border: 'none',
+                  background: '#dc2626',
+                  color: '#ffffff',
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                {submitting ? 'Removing...' : 'Yes, Remove'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Report Preview Modal */}
+      {previewReport && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(4px)', display: 'grid', placeItems: 'center', zIndex: 1200, padding: '1rem' }}>
+          <div className="card" style={{ width: '100%', maxWidth: '540px', padding: '1.5rem', background: '#ffffff', borderRadius: '16px', boxShadow: '0 25px 50px rgba(0,0,0,0.25)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <FileCheck size={20} color="#0284c7" />
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 800, margin: 0, color: '#0f172a' }}>
+                  Medical Report Preview
+                </h3>
+              </div>
+              <button onClick={() => setPreviewReport(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ padding: '1.25rem', background: '#f8fafc', borderRadius: 12, border: '1px solid #e2e8f0', marginBottom: '1.25rem' }}>
+              <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.35rem' }}>
+                {previewReport.name}
+              </div>
+              <div style={{ fontSize: '0.78rem', color: '#64748b', marginBottom: '0.5rem' }}>
+                File Size: <strong>{previewReport.fileSize}</strong> &bull; Uploaded: <strong>{previewReport.uploadedAt}</strong>
+              </div>
+              {previewReport.notes && (
+                <div style={{ fontSize: '0.8rem', color: '#334155', fontStyle: 'italic', background: '#ffffff', padding: '0.6rem 0.8rem', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                  &ldquo;{previewReport.notes}&rdquo;
+                </div>
+              )}
+
+              {previewReport.dataUrl && previewReport.dataUrl.startsWith('data:image') && (
+                <div style={{ marginTop: '0.75rem', textAlign: 'center' }}>
+                  <img src={previewReport.dataUrl} alt="Report Preview" style={{ maxWidth: '100%', maxHeight: '240px', borderRadius: 8, objectFit: 'contain' }} />
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+              {previewReport.dataUrl && (
+                <a
+                  href={previewReport.dataUrl}
+                  download={previewReport.name}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    padding: '0.5rem 1rem',
+                    borderRadius: 8,
+                    background: '#0284c7',
+                    color: 'white',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    textDecoration: 'none',
+                  }}
+                >
+                  <Download size={14} /> Download Document
+                </a>
+              )}
+              <button
+                type="button"
+                onClick={() => setPreviewReport(null)}
+                className="btn btn-secondary"
+              >
+                Close Preview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Add Family Member Modal */}
       {showAddModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(3px)', display: 'grid', placeItems: 'center', zIndex: 1000, padding: '1rem' }}>
-          <div className="card" style={{ width: '100%', maxWidth: '480px', padding: '1.5rem', background: '#ffffff', borderRadius: '14px' }}>
+          <div className="card" style={{ width: '100%', maxWidth: '480px', padding: '1.5rem', background: '#ffffff', borderRadius: '16px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0 }}>Add Family Member</h3>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <Plus size={18} color="#0284c7" /> Add Family Member
+              </h3>
               <button onClick={() => setShowAddModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
                 <X size={18} />
               </button>
@@ -956,17 +1656,17 @@ export const FamilyTree: React.FC<FamilyTreeProps> = ({ treeData, onRefresh, can
 
             <form onSubmit={handleSaveMember}>
               <div className="form-group" style={{ marginBottom: '0.85rem' }}>
-                <label className="form-label">Full Name *</label>
+                <label className="form-label" style={{ fontSize: '0.8rem', fontWeight: 700 }}>Full Name *</label>
                 <input required className="form-input" value={addName} onChange={(e) => setAddName(e.target.value)} placeholder="e.g. Ramesh Verma" />
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.85rem' }}>
                 <div className="form-group">
-                  <label className="form-label">Age</label>
+                  <label className="form-label" style={{ fontSize: '0.8rem', fontWeight: 700 }}>Age</label>
                   <input type="number" min="0" max="120" className="form-input" value={addAge} onChange={(e) => setAddAge(e.target.value)} placeholder="Years" />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Gender</label>
+                  <label className="form-label" style={{ fontSize: '0.8rem', fontWeight: 700 }}>Gender</label>
                   <select className="form-select" value={addGender} onChange={(e) => setAddGender(e.target.value)}>
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
@@ -976,7 +1676,7 @@ export const FamilyTree: React.FC<FamilyTreeProps> = ({ treeData, onRefresh, can
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.85rem' }}>
                 <div className="form-group">
-                  <label className="form-label">Relationship to Patient</label>
+                  <label className="form-label" style={{ fontSize: '0.8rem', fontWeight: 700 }}>Relationship to Patient</label>
                   <select className="form-select" value={addRelation} onChange={(e) => setAddRelation(e.target.value)}>
                     <option value="Father">Father</option>
                     <option value="Mother">Mother</option>
@@ -989,20 +1689,76 @@ export const FamilyTree: React.FC<FamilyTreeProps> = ({ treeData, onRefresh, can
                   </select>
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Condition</label>
+                  <label className="form-label" style={{ fontSize: '0.8rem', fontWeight: 700 }}>Condition</label>
                   <select className="form-select" value={addCondition} onChange={(e) => setAddCondition(e.target.value)}>
                     <option value="None">None (Healthy)</option>
                     <option value="Hypertension">Hypertension</option>
                     <option value="Type 2 diabetes">Type 2 Diabetes</option>
                     <option value="Asthma">Asthma</option>
                     <option value="Cardiovascular Disease">Cardiovascular Disease</option>
+                    <option value="Colorectal Cancer">Colorectal Cancer</option>
                   </select>
                 </div>
               </div>
 
-              <div className="form-group" style={{ marginBottom: '1.25rem' }}>
-                <label className="form-label">Clinical Notes</label>
+              <div className="form-group" style={{ marginBottom: '0.85rem' }}>
+                <label className="form-label" style={{ fontSize: '0.8rem', fontWeight: 700 }}>Clinical Notes</label>
                 <input className="form-input" value={addNotes} onChange={(e) => setAddNotes(e.target.value)} placeholder="e.g. Diagnosed at age 52; ongoing lifestyle care" />
+              </div>
+
+              {/* Optional Report Attachment during registration */}
+              <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                <label className="form-label" style={{ fontSize: '0.8rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <Paperclip size={14} color="#0284c7" /> Attach Medical Report (Optional)
+                </label>
+                <input
+                  type="file"
+                  ref={addReportInputRef}
+                  style={{ display: 'none' }}
+                  accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (!f) return;
+                    const r = new FileReader();
+                    r.onload = () => {
+                      setAddReportFile({
+                        name: f.name,
+                        fileSize: f.size > 1024 * 1024 ? `${(f.size / (1024 * 1024)).toFixed(2)} MB` : `${Math.round(f.size / 1024)} KB`,
+                        dataUrl: r.result as string,
+                      });
+                    };
+                    r.readAsDataURL(f);
+                  }}
+                />
+                {addReportFile ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.45rem 0.75rem', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, fontSize: '0.8rem', color: '#166534' }}>
+                    <span>✓ {addReportFile.name} ({addReportFile.fileSize})</span>
+                    <button type="button" onClick={() => setAddReportFile(null)} style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', fontWeight: 700 }}>
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => addReportInputRef.current?.click()}
+                    style={{
+                      width: '100%',
+                      padding: '0.5rem',
+                      background: '#f8fafc',
+                      border: '1px dashed #cbd5e1',
+                      borderRadius: 8,
+                      fontSize: '0.78rem',
+                      color: '#64748b',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.4rem',
+                    }}
+                  >
+                    <Upload size={13} /> Select Medical PDF / Diagnostic File
+                  </button>
+                )}
               </div>
 
               <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>

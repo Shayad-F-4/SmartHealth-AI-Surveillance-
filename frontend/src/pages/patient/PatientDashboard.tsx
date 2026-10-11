@@ -59,7 +59,7 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({ onNavigate }
   const [riskData, setRiskData] = useState<any>(null);
   const [trendsData, setTrendsData] = useState<any>(null);
   const [areaAlerts, setAreaAlerts] = useState<any[]>([]);
-  const [showFullAdvisory, setShowFullAdvisory] = useState<boolean>(true);
+  const [showFullAdvisory, setShowFullAdvisory] = useState<boolean>(false);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1004,280 +1004,210 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({ onNavigate }
               activeAreaAlert.riskLevel === 'HIGH_RISK'
                 ? 'linear-gradient(135deg, #fff7ed 0%, #fff1f2 100%)'
                 : 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)',
-            border: `1.5px solid ${activeAreaAlert.riskLevel === 'HIGH_RISK' ? '#fecaca' : '#fde68a'}`,
-            borderRadius: 16,
-            padding: '1.25rem 1.5rem',
-            boxShadow: '0 4px 18px rgba(220, 38, 38, 0.05)',
+            border: `1.5px solid ${activeAreaAlert.riskLevel === 'HIGH_RISK' ? '#fed7aa' : '#fde68a'}`,
+            borderRadius: 14,
+            padding: showFullAdvisory ? '0.85rem 1.15rem' : '0.55rem 0.95rem',
+            boxShadow: '0 2px 10px rgba(220, 38, 38, 0.04)',
             position: 'relative',
+            transition: 'all 0.2s ease',
           }}
         >
-          {/* Header Row */}
+          {/* Compact Top Alert Bar */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
               flexWrap: 'wrap',
-              gap: '0.75rem',
-              marginBottom: showFullAdvisory ? '1rem' : 0,
+              gap: '0.65rem',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
               <div
                 style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 12,
+                  width: 32,
+                  height: 32,
+                  borderRadius: 8,
                   background: activeAreaAlert.riskLevel === 'HIGH_RISK' ? '#fee2e2' : '#fef3c7',
                   border: `1px solid ${activeAreaAlert.riskLevel === 'HIGH_RISK' ? '#fca5a5' : '#fcd34d'}`,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   flexShrink: 0,
-                  boxShadow: '0 2px 8px rgba(220, 38, 38, 0.12)',
                 }}
               >
-                <Flame size={22} color={activeAreaAlert.riskLevel === 'HIGH_RISK' ? '#dc2626' : '#d97706'} />
+                <Flame size={18} color={activeAreaAlert.riskLevel === 'HIGH_RISK' ? '#dc2626' : '#d97706'} />
               </div>
 
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  <span
-                    style={{
-                      fontSize: '0.68rem',
-                      fontWeight: 800,
-                      padding: '0.15rem 0.6rem',
-                      borderRadius: 999,
-                      background: activeAreaAlert.riskLevel === 'HIGH_RISK' ? '#dc2626' : '#d97706',
-                      color: '#ffffff',
-                      letterSpacing: '0.04em',
-                      textTransform: 'uppercase',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.35rem',
-                    }}
-                  >
-                    <span
-                      style={{
-                        width: 6,
-                        height: 6,
-                        borderRadius: '50%',
-                        background: '#ffffff',
-                        display: 'inline-block',
-                      }}
-                    />
-                    {activeAreaAlert.riskLevel === 'HIGH_RISK' ? 'High Risk Alert' : 'Active Advisory'}
-                  </span>
-
-                  <span
-                    style={{
-                      fontSize: '0.74rem',
-                      fontWeight: 700,
-                      color: '#9a3412',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.25rem',
-                    }}
-                  >
-                    <MapPin size={13} color="#ea580c" />
-                    {activeAreaAlert.district || district} Regional Zone
-                  </span>
-
-                  {activeAreaAlert.cases && (
-                    <span
-                      style={{
-                        fontSize: '0.7rem',
-                        fontWeight: 700,
-                        color: '#c2410c',
-                        background: 'rgba(255, 255, 255, 0.8)',
-                        padding: '0.12rem 0.5rem',
-                        borderRadius: 6,
-                        border: '1px solid #fed7aa',
-                      }}
-                    >
-                      {activeAreaAlert.cases} Active Cases This Week
-                    </span>
-                  )}
-                </div>
-
-                <h3
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                <span
                   style={{
-                    fontSize: '1.12rem',
+                    fontSize: '0.65rem',
                     fontWeight: 800,
-                    color: '#991b1b',
-                    margin: '0.3rem 0 0 0',
-                    lineHeight: 1.25,
+                    padding: '0.15rem 0.55rem',
+                    borderRadius: 999,
+                    background: activeAreaAlert.riskLevel === 'HIGH_RISK' ? '#dc2626' : '#d97706',
+                    color: '#ffffff',
+                    letterSpacing: '0.04em',
+                    textTransform: 'uppercase',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.3rem',
                   }}
                 >
-                  {activeAreaAlert.disease}: Local Community Health Advisory
-                </h3>
+                  <span
+                    style={{
+                      width: 5,
+                      height: 5,
+                      borderRadius: '50%',
+                      background: '#ffffff',
+                      display: 'inline-block',
+                    }}
+                  />
+                  {activeAreaAlert.riskLevel === 'HIGH_RISK' ? 'High Risk Alert' : 'Active Advisory'}
+                </span>
+
+                <span
+                  style={{
+                    fontSize: '0.84rem',
+                    fontWeight: 800,
+                    color: '#991b1b',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                  }}
+                >
+                  {activeAreaAlert.disease}:
+                </span>
+
+                <span style={{ fontSize: '0.8rem', color: '#7c2d12', fontWeight: 600 }}>
+                  {activeAreaAlert.district || district} Regional Zone &bull; {activeAreaAlert.cases || 38} active cases this week
+                </span>
               </div>
             </div>
 
-            <button
-              onClick={() => setShowFullAdvisory(!showFullAdvisory)}
-              style={{
-                background: '#ffffff',
-                border: '1px solid #fed7aa',
-                borderRadius: 10,
-                padding: '0.45rem 0.85rem',
-                fontSize: '0.78rem',
-                fontWeight: 700,
-                color: '#9a3412',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-                boxShadow: '0 1px 3px rgba(15,23,42,0.04)',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              {showFullAdvisory ? (
-                <>
-                  <ChevronUp size={14} /> Minimize Advisory
-                </>
-              ) : (
-                <>
-                  <ChevronDown size={14} /> Show Suggestions &amp; Action Plan
-                </>
-              )}
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+              <button
+                onClick={() => setShowFullAdvisory(!showFullAdvisory)}
+                style={{
+                  background: '#ffffff',
+                  border: '1px solid #fed7aa',
+                  borderRadius: 8,
+                  padding: '0.35rem 0.7rem',
+                  fontSize: '0.74rem',
+                  fontWeight: 700,
+                  color: '#9a3412',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.3rem',
+                  boxShadow: '0 1px 2px rgba(15,23,42,0.04)',
+                }}
+              >
+                {showFullAdvisory ? (
+                  <>
+                    <ChevronUp size={13} /> Hide Precautions
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown size={13} /> View Precautions (5)
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={() => onNavigate('surveillance')}
+                style={{
+                  background: '#c2410c',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '0.35rem 0.75rem',
+                  fontSize: '0.74rem',
+                  fontWeight: 700,
+                  color: '#ffffff',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.3rem',
+                  boxShadow: '0 2px 6px rgba(194, 65, 12, 0.2)',
+                }}
+              >
+                <MapPin size={13} /> Live Map
+              </button>
+            </div>
           </div>
 
-          {/* Expanded Advisory & Suggestions Body */}
+          {/* Expanded Advisory & Suggestions Body (Compact) */}
           {showFullAdvisory && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '0.65rem' }}>
-              {/* Alert Narrative Message */}
-              <p style={{ fontSize: '0.86rem', color: '#7c2d12', margin: 0, lineHeight: 1.55, fontWeight: 500 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', marginTop: '0.65rem', paddingTop: '0.65rem', borderTop: '1px dashed #fed7aa' }}>
+              <p style={{ fontSize: '0.78rem', color: '#7c2d12', margin: 0, lineHeight: 1.45, fontWeight: 500 }}>
                 {activeAreaAlert.message}
               </p>
 
-              {/* Actionable Suggestions & Household Precautions */}
               <div
                 style={{
-                  background: 'rgba(255, 255, 255, 0.92)',
-                  backdropFilter: 'blur(8px)',
-                  border: '1px solid #fed7aa',
-                  borderRadius: 14,
-                  padding: '1.15rem 1.35rem',
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))',
+                  gap: '0.5rem',
                 }}
               >
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginBottom: '0.85rem',
-                    flexWrap: 'wrap',
-                    gap: '0.5rem',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                    <ShieldCheck size={18} color="#c2410c" />
-                    <span style={{ fontSize: '0.88rem', fontWeight: 800, color: '#9a3412' }}>
-                      Recommended Preventive Suggestions for You &amp; Your Family
+                {advisoryPrecautions.map((item, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '0.45rem',
+                      padding: '0.5rem 0.65rem',
+                      background: '#ffffff',
+                      border: '1px solid #ffedd5',
+                      borderRadius: 10,
+                      boxShadow: '0 1px 2px rgba(15,23,42,0.02)',
+                    }}
+                  >
+                    <span style={{ fontSize: '1rem', lineHeight: 1, flexShrink: 0, marginTop: '1px' }}>
+                      {item.icon}
                     </span>
-                  </div>
-                  <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8' }}>
-                    Integrated Disease Surveillance Protocol (IDSP)
-                  </span>
-                </div>
-
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
-                    gap: '0.75rem',
-                  }}
-                >
-                  {advisoryPrecautions.map((item, idx) => (
-                    <div
-                      key={idx}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        gap: '0.75rem',
-                        padding: '0.75rem 0.95rem',
-                        background: '#ffffff',
-                        border: '1px solid #ffedd5',
-                        borderRadius: 12,
-                        boxShadow: '0 1px 3px rgba(15,23,42,0.03)',
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontSize: '1.15rem',
-                          lineHeight: 1,
-                          flexShrink: 0,
-                          marginTop: '2px',
-                        }}
-                      >
-                        {item.icon}
-                      </span>
-                      <div>
-                        <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#9a3412', marginBottom: '0.15rem' }}>
-                          {item.title}
-                        </div>
-                        <div style={{ fontSize: '0.77rem', color: '#431407', lineHeight: 1.45, fontWeight: 500 }}>
-                          {item.desc}
-                        </div>
+                    <div>
+                      <div style={{ fontSize: '0.74rem', fontWeight: 800, color: '#9a3412', marginBottom: '0.1rem' }}>
+                        {item.title}
+                      </div>
+                      <div style={{ fontSize: '0.7rem', color: '#431407', lineHeight: 1.35, fontWeight: 500 }}>
+                        {item.desc}
                       </div>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ))}
               </div>
 
-              {/* Action Buttons Row */}
               <div
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   flexWrap: 'wrap',
-                  gap: '0.75rem',
-                  paddingTop: '0.35rem',
+                  gap: '0.5rem',
+                  paddingTop: '0.2rem',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
-                  <button
-                    onClick={() => onNavigate('surveillance')}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.45rem',
-                      padding: '0.55rem 1.05rem',
-                      background: 'linear-gradient(135deg, #c2410c 0%, #ea580c 100%)',
-                      color: '#ffffff',
-                      border: 'none',
-                      borderRadius: 10,
-                      fontSize: '0.82rem',
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                      boxShadow: '0 2px 8px rgba(194, 65, 12, 0.25)',
-                    }}
-                  >
-                    <MapPin size={15} /> Explore Live Disease Map &amp; Hotspots
-                  </button>
-
-                  <button
-                    onClick={() => onNavigate('ai-assistant')}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.45rem',
-                      padding: '0.55rem 1rem',
-                      background: '#ffffff',
-                      color: '#9a3412',
-                      border: '1px solid #fed7aa',
-                      borderRadius: 10,
-                      fontSize: '0.82rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <Sparkles size={14} color="#ea580c" /> Check Symptoms with AI
-                  </button>
-                </div>
+                <button
+                  onClick={() => onNavigate('ai-assistant')}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    padding: '0.35rem 0.75rem',
+                    background: '#ffffff',
+                    color: '#9a3412',
+                    border: '1px solid #fed7aa',
+                    borderRadius: 8,
+                    fontSize: '0.74rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Sparkles size={13} color="#ea580c" /> Check Symptoms with AI
+                </button>
 
                 <button
                   onClick={() => onNavigate('appointments')}
@@ -1285,12 +1215,12 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({ onNavigate }
                     background: 'none',
                     border: 'none',
                     color: '#c2410c',
-                    fontSize: '0.8rem',
+                    fontSize: '0.74rem',
                     fontWeight: 700,
                     cursor: 'pointer',
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '0.3rem',
+                    gap: '0.25rem',
                   }}
                 >
                   Book Preventive Consultation &rarr;

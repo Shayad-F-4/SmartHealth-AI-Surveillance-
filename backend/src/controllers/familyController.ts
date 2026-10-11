@@ -79,3 +79,35 @@ export async function deleteFamilyMember(req: AuthRequest, res: Response) {
     return res.status(500).json({ error: 'Failed to delete family member.' });
   }
 }
+
+export async function updateFamilyMember(req: AuthRequest, res: Response) {
+  try {
+    const memberId = req.params.id;
+    const { relation, name, age, condition, ageAtDiagnosis, notes } = req.body;
+
+    const existing = await prisma.familyMember.findUnique({ where: { id: memberId } });
+    if (!existing) {
+      return res.status(404).json({ error: 'Family member not found.' });
+    }
+
+    const updated = await prisma.familyMember.update({
+      where: { id: memberId },
+      data: {
+        ...(relation !== undefined && { relation }),
+        ...(name !== undefined && { name }),
+        ...(age !== undefined && { age: age ? parseInt(age) : null }),
+        ...(condition !== undefined && { condition: condition || 'None' }),
+        ...(ageAtDiagnosis !== undefined && { ageAtDiagnosis: ageAtDiagnosis ? parseInt(ageAtDiagnosis) : null }),
+        ...(notes !== undefined && { notes }),
+      },
+    });
+
+    await logAudit(req, 'UPDATE_FAMILY_MEMBER', 'FAMILY_MEMBER', memberId, `Updated ${updated.relation} (${updated.name})`);
+
+    const tree = await getPatientFamilyTree(existing.patientId);
+    return res.json({ member: updated, tree });
+  } catch (err: any) {
+    return res.status(500).json({ error: 'Failed to update family member.' });
+  }
+}
+
