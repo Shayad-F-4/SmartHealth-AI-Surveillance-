@@ -20,15 +20,16 @@ export async function getDoctors(_req: AuthRequest, res: Response) {
     const doctors = await prisma.doctor.findMany({
       where: {
         verificationStatus: 'VERIFIED',
+        isActive: true,
+        user: { role: 'DOCTOR' },
       },
       include: {
         user: {
           select: {
             id: true,
             name: true,
-            email: true,
-            phone: true,
             avatarUrl: true,
+            role: true,
           },
         },
         hospital: {
@@ -45,7 +46,23 @@ export async function getDoctors(_req: AuthRequest, res: Response) {
       },
     });
 
-    return res.json({ doctors });
+    const sanitizedDoctors = doctors.map((d) => ({
+      id: d.id,
+      specialty: d.specialty,
+      qualification: d.qualification,
+      experienceYears: d.experienceYears,
+      licenseNumber: d.licenseNumber,
+      verificationStatus: d.verificationStatus,
+      isActive: d.isActive,
+      user: {
+        id: d.user.id,
+        name: d.user.name,
+        avatarUrl: d.user.avatarUrl,
+      },
+      hospital: d.hospital,
+    }));
+
+    return res.json({ doctors: sanitizedDoctors });
   } catch (err: any) {
     console.error('Error fetching doctors for appointment booking:', err);
     return res.status(500).json({ error: 'Failed to fetch doctor directory.' });
@@ -67,11 +84,15 @@ export async function getDoctorSlots(req: AuthRequest, res: Response) {
 
     const doctor = await prisma.doctor.findUnique({
       where: { id: doctorId },
-      include: { user: { select: { name: true } } },
+      include: { user: { select: { name: true, role: true } } },
     });
 
     if (!doctor) {
       return res.status(404).json({ error: 'Doctor not found.' });
+    }
+
+    if (doctor.user?.role !== 'DOCTOR' || doctor.verificationStatus !== 'VERIFIED' || !doctor.isActive) {
+      return res.status(400).json({ error: 'Appointments are available only with verified doctors.' });
     }
 
     const targetDate = new Date(date);
@@ -164,6 +185,11 @@ export async function bookAppointment(req: AuthRequest, res: Response) {
 
     if (!doctor) {
       return res.status(404).json({ error: 'Doctor not found.' });
+    }
+
+    // Strict Doctor Verification and Active Eligibility Checks
+    if (doctor.user?.role !== 'DOCTOR' || doctor.verificationStatus !== 'VERIFIED' || !doctor.isActive) {
+      return res.status(400).json({ error: 'Appointments are available only with verified doctors.' });
     }
 
     const bookingDate = new Date(appointmentDate);
@@ -270,6 +296,8 @@ export async function getMyAppointmens(req: AuthRequest, res: Response) {
   }
 }
 
+export const getMyAppointments = getMyAppointmens;
+
 /**
  * GET /api/appointments/doctor/requests
  * Doctor fetches their pending appointment requests and schedule
@@ -300,13 +328,31 @@ export async function getDoctorAppointmentRequests(req: AuthRequest, res: Respon
       orderBy: { appointmentDate: 'desc' },
     });
 
-    const pending = appointments.filter((a) => a.status === 'PENDING');
-    const upcoming = appointments.filter((a) => a.status === 'APPROVED');
-    const completed = appointments.filter((a) => a.status === 'COMPLETED');
-    const rejectedOrCancelled = appointments.filter((a) => a.status === 'REJECTED' || a.status === 'CANCELLED');
+    const normalizedAppointments = appointments.map((a) => ({
+      ...a,
+      timeSlot: a.startTime,
+      notes: a.doctorNotes,
+      appointmentDate: a.appointmentDate instanceof Date ? a.appointmentDate.toISOString().split('T')[0] : a.appointmentDate,
+      patient: a.patient
+        ? {
+            ...a.patient,
+            fullName: a.patient.user?.name,
+            email: a.patient.user?.email,
+            phone: a.patient.user?.phone,
+            avatarUrl: a.patient.user?.avatarUrl,
+          }
+        : null,
+    }));
+
+    const pending = normalizedAppointments.filter((a) => a.status === 'PENDING');
+    const upcoming = normalizedAppointments.filter((a) => a.status === 'APPROVED');
+    const completed = normalizedAppointments.filter((a) => a.status === 'COMPLETED');
+    const rejectedOrCancelled = normalizedAppointments.filter((a) => a.status === 'REJECTED' || a.status === 'CANCELLED');
 
     return res.json({
-      all: appointments,
+      success: true,
+      appointments: normalizedAppointments,
+      all: normalizedAppointments,
       pending,
       upcoming,
       completed,
@@ -329,7 +375,8 @@ export async function updateAppointmentStatus(req: AuthRequest, res: Response) {
     }
 
     const { id } = req.params;
-    const { status, doctorNotes, meetingLink } = req.body;
+    const { status, doctorNotes, notes, meetingLink } = req.body;
+    const resolvedNotes = doctorNotes || notes;
 
     if (!status || !['APPROVED', 'REJECTED', 'CANCELLED', 'COMPLETED'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status specified (APPROVED, REJECTED, CANCELLED, COMPLETED).' });
@@ -351,7 +398,7 @@ export async function updateAppointmentStatus(req: AuthRequest, res: Response) {
       where: { id },
       data: {
         status,
-        doctorNotes: doctorNotes || appointment.doctorNotes,
+        doctorNotes: resolvedNotes || appointment.doctorNotes,
         meetingLink: meetingLink || appointment.meetingLink,
       },
     });
@@ -361,8 +408,8 @@ export async function updateAppointmentStatus(req: AuthRequest, res: Response) {
     let notifyTitle = `Appointment ${status}`;
     let notifyMsg = `Your appointment with Dr. ${appointment.doctor.user.name} on ${dateFormatted} at ${appointment.startTime} has been ${status.toLowerCase()}.`;
 
-    if (doctorNotes) {
-      notifyMsg += ` Note: "${doctorNotes}"`;
+    if (resolvedNotes) {
+      notifyMsg += ` Note: "${resolvedNotes}"`;
     }
 
     await prisma.notification.create({
@@ -378,6 +425,7 @@ export async function updateAppointmentStatus(req: AuthRequest, res: Response) {
     await logAudit(req, 'UPDATE_APPOINTMENT_STATUS', 'APPOINTMENT', id, `Updated status to ${status} for patient ${appointment.patient.user.name}`);
 
     return res.json({
+      success: true,
       message: `Appointment status updated to ${status}.`,
       appointment: updated,
     });

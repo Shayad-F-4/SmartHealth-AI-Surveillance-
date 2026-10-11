@@ -34,9 +34,17 @@ export async function createReferral(req: AuthRequest, res: Response) {
         status: 'GENERATED',
         clinicalNotes,
       },
+      include: {
+        referringDoctor: { include: { user: { select: { name: true } } } },
+        patient: { include: { user: { select: { name: true, phone: true } } } },
+      },
     });
 
-    const patient = await prisma.patient.findUnique({ where: { id: patientId } });
+    // Notify Patient
+    const patient = await prisma.patient.findUnique({
+      where: { id: patientId },
+      include: { user: { select: { name: true } } },
+    });
     if (patient) {
       await prisma.notification.create({
         data: {
@@ -49,35 +57,103 @@ export async function createReferral(req: AuthRequest, res: Response) {
       });
     }
 
+    // Notify Target Doctor if specified
+    if (targetDoctorId) {
+      const targetDoc = await prisma.doctor.findUnique({ where: { id: targetDoctorId } });
+      if (targetDoc) {
+        await prisma.notification.create({
+          data: {
+            userId: targetDoc.userId,
+            title: 'New Clinical Referral Received',
+            message: `Dr. ${req.user!.name} has referred patient ${patient?.user?.name || ''} to you for: ${reason}. Priority: ${priority || 'ROUTINE'}.`,
+            type: 'APPOINTMENT',
+            priority: priority === 'EMERGENCY' ? 'CRITICAL' : 'HIGH',
+          },
+        });
+      }
+    }
+
     await logAudit(req, 'CREATE_REFERRAL', 'REFERRAL', referral.id, `Created referral to ${targetSpecialty} for patient ${patientId}`);
     return res.status(201).json(referral);
   } catch (err: any) {
+    console.error('Failed to create referral:', err);
     return res.status(500).json({ error: 'Failed to create referral.' });
   }
 }
 
 export async function getPatientReferrals(req: AuthRequest, res: Response) {
   try {
-    let patientId: string | undefined = req.params.patientId;
-    if (!patientId && req.user?.role === 'PATIENT') {
+    let patientId: string | undefined = req.params.patientId || (req.query.patientId as string);
+
+    // 1. If explicit patientId is passed
+    if (patientId) {
+      const referrals = await prisma.referral.findMany({
+        where: { patientId },
+        include: {
+          referringDoctor: { include: { user: { select: { name: true } } } },
+          patient: { include: { user: { select: { name: true, phone: true } } } },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+      return res.json(referrals);
+    }
+
+    // 2. Patient requesting their own referrals
+    if (req.user?.role === 'PATIENT') {
       const p = await prisma.patient.findUnique({ where: { userId: req.user.id } });
-      patientId = p?.id;
+      if (!p) {
+        return res.status(404).json({ error: 'Patient profile not found.' });
+      }
+
+      const referrals = await prisma.referral.findMany({
+        where: { patientId: p.id },
+        include: {
+          referringDoctor: { include: { user: { select: { name: true } } } },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+      return res.json(referrals);
     }
 
-    if (!patientId) {
-      return res.status(400).json({ error: 'Patient ID is required.' });
+    // 3. Doctor requesting referrals (inbound referrals targeted to them, created by them, or matching their specialty)
+    if (req.user?.role === 'DOCTOR') {
+      const doc = await prisma.doctor.findUnique({ where: { userId: req.user.id } });
+      if (!doc) {
+        return res.status(404).json({ error: 'Doctor profile not found.' });
+      }
+
+      const referrals = await prisma.referral.findMany({
+        where: {
+          OR: [
+            { referringDoctorId: doc.id },
+            { targetDoctorId: doc.id },
+            { targetSpecialty: doc.specialty },
+          ],
+        },
+        include: {
+          referringDoctor: { include: { user: { select: { name: true } } } },
+          patient: { include: { user: { select: { name: true, phone: true, email: true } } } },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+      return res.json(referrals);
     }
 
-    const referrals = await prisma.referral.findMany({
-      where: { patientId },
-      include: {
-        referringDoctor: { include: { user: { select: { name: true } } } },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    // 4. Admin requesting surveillance referral overview
+    if (req.user?.role === 'ADMIN') {
+      const referrals = await prisma.referral.findMany({
+        include: {
+          referringDoctor: { include: { user: { select: { name: true } } } },
+          patient: { include: { user: { select: { name: true, phone: true, email: true } } } },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+      return res.json(referrals);
+    }
 
-    return res.json(referrals);
+    return res.status(400).json({ error: 'Patient ID is required.' });
   } catch (err: any) {
+    console.error('Failed to fetch referrals:', err);
     return res.status(500).json({ error: 'Failed to fetch referrals.' });
   }
 }
@@ -87,17 +163,56 @@ export async function updateReferralStatus(req: AuthRequest, res: Response) {
     const referralId = req.params.id;
     const { status, clinicalNotes } = req.body;
 
+    const referral = await prisma.referral.findUnique({
+      where: { id: referralId },
+      include: {
+        referringDoctor: { include: { user: true } },
+        patient: { include: { user: true } },
+      },
+    });
+
+    if (!referral) {
+      return res.status(404).json({ error: 'Referral not found.' });
+    }
+
     const updated = await prisma.referral.update({
       where: { id: referralId },
       data: {
         status,
-        clinicalNotes: clinicalNotes || undefined,
+        clinicalNotes: clinicalNotes || referral.clinicalNotes,
       },
     });
+
+    // Notify referring doctor and patient about status change
+    const doctorName = req.user?.name || 'Practitioner';
+    if (referral.referringDoctor?.user?.id && referral.referringDoctor.userId !== req.user?.id) {
+      await prisma.notification.create({
+        data: {
+          userId: referral.referringDoctor.userId,
+          title: `Referral ${status}`,
+          message: `Referral for patient ${referral.patient.user.name} has been updated to ${status} by Dr. ${doctorName}.`,
+          type: 'APPOINTMENT',
+          priority: 'MEDIUM',
+        },
+      });
+    }
+
+    if (referral.patient?.userId) {
+      await prisma.notification.create({
+        data: {
+          userId: referral.patient.userId,
+          title: `Referral Status: ${status}`,
+          message: `Your clinical referral to ${referral.targetSpecialty} has been updated to ${status}.`,
+          type: 'APPOINTMENT',
+          priority: 'MEDIUM',
+        },
+      });
+    }
 
     await logAudit(req, 'UPDATE_REFERRAL_STATUS', 'REFERRAL', referralId, `Status updated to ${status}`);
     return res.json(updated);
   } catch (err: any) {
+    console.error('Failed to update referral status:', err);
     return res.status(500).json({ error: 'Failed to update referral status.' });
   }
 }

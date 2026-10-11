@@ -13,6 +13,16 @@ export interface UserProfile {
     healthId: string;
     bloodGroup: string;
     district: string;
+    locality?: string;
+    subLocality?: string;
+    city?: string;
+    state?: string;
+    postalCode?: string;
+    country?: string;
+    formattedAddress?: string;
+    address?: string;
+    lat?: number;
+    lng?: number;
     allergies: string;
     chronicConditions: string;
     emergencyContactName: string;

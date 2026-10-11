@@ -110,8 +110,19 @@ export const PersonalInformationCard: React.FC<PersonalInformationCardProps> = (
         </div>
 
         <div>
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-            Email Address
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Email Address
+            </span>
+            {user?.emailVerified ? (
+              <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#047857', background: '#ecfdf5', border: '1px solid #a7f3d0', padding: '0.1rem 0.45rem', borderRadius: 999 }}>
+                ✓ Verified
+              </span>
+            ) : (
+              <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#b45309', background: '#fffbeb', border: '1px solid #fde68a', padding: '0.1rem 0.45rem', borderRadius: 999 }}>
+                ◷ Unverified
+              </span>
+            )}
           </div>
           <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#0f172a', marginTop: '0.2rem' }}>
             {email}
@@ -120,10 +131,12 @@ export const PersonalInformationCard: React.FC<PersonalInformationCardProps> = (
 
         <div>
           <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-            Address / District
+            Address / Verified Locality
           </div>
           <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#0f172a', marginTop: '0.2rem' }}>
-            {address}
+            {patient?.locality && patient?.city
+              ? `📍 ${patient.locality}, ${patient.city}${patient.state ? `, ${patient.state}` : ''}`
+              : address}
           </div>
         </div>
 

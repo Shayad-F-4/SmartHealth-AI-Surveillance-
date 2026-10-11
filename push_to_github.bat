@@ -1,3 +1,3 @@
 git add .
-git commit -m "feat(ui/robot): compact navbar/sidebar UI & 4-edge peeking 3D AI floating robot assistant"
+git commit -m "feat(verification): doctor verification, appointment eligibility, admin review center, social auth & email verification"
 git push

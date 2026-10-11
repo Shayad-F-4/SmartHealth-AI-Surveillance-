@@ -878,3 +878,384 @@ button, input, select, textarea {
   }
 }
 
+/* ==========================================================================
+   HealthRoots Family Health Tree & Pedigree Workspace Styles
+   ========================================================================== */
+:root {
+  --tree-cyan: #0284c7;
+  --tree-cyan-soft: #e0f2fe;
+  --tree-mint: #059669;
+  --tree-mint-soft: #ecfdf5;
+  --tree-amber: #d97706;
+  --tree-amber-soft: #fef3c7;
+  --tree-rose: #e11d48;
+  --tree-rose-soft: #ffe4e6;
+  --avatar-female: #c026d3;
+  --avatar-female-soft: #fae8ff;
+  --tree-connector: #94a3b8;
+  --tree-grid-dot: #cbd5e1;
+}
+
+.healthroots-tree-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: 100%;
+}
+
+.healthroots-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.healthroots-summary-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.1rem 1.25rem;
+  background: #ffffff;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.healthroots-summary-icon {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #2563eb;
+  flex-shrink: 0;
+}
+
+.healthroots-summary-icon.cyan {
+  background: var(--tree-cyan-soft);
+  color: var(--tree-cyan);
+}
+
+.healthroots-summary-icon.mint {
+  background: var(--tree-mint-soft);
+  color: var(--tree-mint);
+}
+
+.healthroots-summary-item span {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.healthroots-summary-item strong {
+  font-size: 1.5rem;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-top: 2px;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.healthroots-summary-item small {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* Two-column layout: Canvas on Left, Side Panel on Right */
+.healthroots-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .healthroots-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.healthroots-primary {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.healthroots-surface {
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  background: #ffffff;
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.healthroots-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-light);
+  background: #ffffff;
+}
+
+.healthroots-panel-heading h2 {
+  font-size: 0.95rem;
+  font-weight: 800;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--text-main);
+  margin: 0;
+}
+
+/* Interactive Canvas Viewport */
+.healthroots-viewport {
+  height: 520px;
+  overflow: hidden;
+  position: relative;
+  background-color: #fafbfc;
+  background-image: radial-gradient(var(--tree-grid-dot) 1px, transparent 1px);
+  background-size: 18px 18px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.healthroots-viewport.is-dragging {
+  cursor: grabbing;
+}
+
+.healthroots-stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.healthroots-connectors {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.healthroots-connectors path {
+  stroke: #0284c7;
+  stroke-width: 2.2;
+  fill: none;
+}
+
+.animated-pedigree-arrow {
+  stroke: #0284c7;
+  stroke-width: 2.2;
+  stroke-dasharray: 6 5;
+  fill: none;
+  animation: pedigreeDashFlow 1.25s linear infinite;
+  filter: drop-shadow(0 1px 2px rgba(2, 132, 199, 0.25));
+}
+
+@keyframes pedigreeDashFlow {
+  from {
+    stroke-dashoffset: 22;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.healthroots-partner-line {
+  stroke: #94a3b8;
+  stroke-width: 2;
+  stroke-dasharray: 4 3;
+  fill: none;
+}
+
+.healthroots-gen-label {
+  position: absolute;
+  left: 28px;
+  right: 28px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  height: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.healthroots-member-card {
+  position: absolute;
+  display: block;
+  text-align: left;
+  width: 210px;
+  min-height: 138px;
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 12px 14px;
+  box-shadow: 0 3px 12px rgba(15, 23, 42, 0.05);
+  border: 1.5px solid #e2e8f0;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  box-sizing: border-box;
+}
+
+.healthroots-member-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.1);
+  border-color: #0284c7;
+}
+
+.healthroots-member-card.member-selected {
+  border: 2px solid #0284c7;
+  background: #f0f9ff;
+  box-shadow: 0 0 0 4px rgba(2, 132, 199, 0.15);
+}
+
+.healthroots-member-avatar {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.healthroots-avatar-male {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.healthroots-avatar-female {
+  background: var(--avatar-female-soft);
+  color: var(--avatar-female);
+}
+
+.healthroots-self-badge {
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  font-size: 0.65rem;
+  padding: 1px 5px;
+  background: var(--primary-600);
+  color: #ffffff;
+  border-radius: 4px;
+  font-weight: 800;
+}
+
+.healthroots-member-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-top: 6px;
+}
+
+.healthroots-indicator-pressure {
+  background: var(--tree-rose-soft);
+  color: var(--tree-rose);
+}
+
+.healthroots-indicator-diabetes {
+  background: var(--tree-amber-soft);
+  color: var(--tree-amber);
+}
+
+.healthroots-indicator-asthma {
+  background: var(--tree-cyan-soft);
+  color: var(--tree-cyan);
+}
+
+.healthroots-indicator-clear {
+  background: var(--tree-mint-soft);
+  color: var(--tree-mint);
+}
+
+/* Tree Canvas Footer & Controls */
+.healthroots-tree-footer {
+  border-top: 1px solid var(--border-light);
+  padding: 0.65rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  background: #ffffff;
+  flex-wrap: wrap;
+}
+
+.healthroots-tree-legend {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.healthroots-zoom-controls {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: #ffffff;
+}
+
+.healthroots-zoom-controls button {
+  height: 30px;
+  width: 30px;
+  border: none;
+  background: transparent;
+  color: var(--text-main);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  border-radius: var(--radius-xs);
+}
+
+.healthroots-zoom-controls button:hover {
+  background: #f1f5f9;
+}
+
+/* Insights Section */
+.healthroots-insight-categories {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  padding: 1.1rem;
+  gap: 0.85rem;
+}
+
+.healthroots-insight-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 0.85rem;
+  background: #fafbfc;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+}
+
+.healthroots-insight-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+

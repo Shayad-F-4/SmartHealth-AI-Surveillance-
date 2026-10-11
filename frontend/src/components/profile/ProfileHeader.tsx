@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Camera, CheckCircle2, CreditCard, Edit3, ShieldCheck, User, Clock, AlertCircle, X } from 'lucide-react';
+import { Camera, CheckCircle2, CreditCard, Edit3, ShieldCheck, User, Clock, AlertCircle, X, XCircle, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 
@@ -382,16 +382,20 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onEditClick,
                   <span>&bull; {user?.doctor?.specialty || 'General Medicine'}</span>
                   <span>&bull; {user?.doctor?.qualification || 'MBBS, MD'}</span>
                   {verificationStatus === 'VERIFIED' ? (
-                    <span style={{ color: '#16a34a', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
-                      <ShieldCheck size={14} /> Verified Practitioner
+                    <span style={{ color: '#047857', background: '#ecfdf5', border: '1px solid #a7f3d0', padding: '0.15rem 0.55rem', borderRadius: 999, fontWeight: 800, fontSize: '0.74rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <CheckCircle2 size={13} /> ✓ Verified Doctor
                     </span>
-                  ) : verificationStatus === 'ADMIN_REVIEW' || verificationStatus === 'AI_REVIEW' ? (
-                    <span style={{ color: '#f59e0b', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
-                      <Clock size={14} /> Verification Pending
+                  ) : verificationStatus === 'REJECTED' ? (
+                    <span style={{ color: '#b91c1c', background: '#fef2f2', border: '1px solid #fecaca', padding: '0.15rem 0.55rem', borderRadius: 999, fontWeight: 800, fontSize: '0.74rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <XCircle size={13} /> ✕ Verification Rejected
+                    </span>
+                  ) : verificationStatus === 'SUSPENDED' ? (
+                    <span style={{ color: '#fbbf24', background: '#1e293b', border: '1px solid #475569', padding: '0.15rem 0.55rem', borderRadius: 999, fontWeight: 800, fontSize: '0.74rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <AlertTriangle size={13} /> ⚠ Verification Suspended
                     </span>
                   ) : (
-                    <span style={{ color: '#64748b', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
-                      <Clock size={14} /> Unverified
+                    <span style={{ color: '#b45309', background: '#fffbeb', border: '1px solid #fde68a', padding: '0.15rem 0.55rem', borderRadius: 999, fontWeight: 800, fontSize: '0.74rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <Clock size={13} /> ◷ Verification Pending
                     </span>
                   )}
                 </>

@@ -56,6 +56,7 @@ export const DoctorReferralsPage: React.FC = () => {
             <table className="table">
               <thead>
                 <tr>
+                  <th>Patient</th>
                   <th>Target Specialty</th>
                   <th>Priority</th>
                   <th>Reason</th>
@@ -68,6 +69,14 @@ export const DoctorReferralsPage: React.FC = () => {
               <tbody>
                 {referrals.map((r) => (
                   <tr key={r.id}>
+                    <td>
+                      <strong style={{ fontSize: '0.88rem', color: 'var(--text-main)' }}>
+                        {r.patient?.user?.name || 'Patient Record'}
+                      </strong>
+                      {r.patient?.user?.phone && (
+                        <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>{r.patient.user.phone}</div>
+                      )}
+                    </td>
                     <td>
                       <span className="badge badge-purple">{r.targetSpecialty}</span>
                     </td>
@@ -82,7 +91,7 @@ export const DoctorReferralsPage: React.FC = () => {
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{r.clinicalNotes}</div>
                       )}
                     </td>
-                    <td style={{ fontSize: '0.82rem' }}>{r.referringDoctor?.user?.name}</td>
+                    <td style={{ fontSize: '0.82rem' }}>{r.referringDoctor?.user?.name || 'Practitioner'}</td>
                     <td style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>{new Date(r.createdAt).toLocaleDateString()}</td>
                     <td>
                       <span className={`badge ${r.status === 'COMPLETED' ? 'badge-success' : (r.status === 'ACCEPTED' ? 'badge-info' : 'badge-warning')}`}>
@@ -99,6 +108,11 @@ export const DoctorReferralsPage: React.FC = () => {
                         {r.status === 'ACCEPTED' && (
                           <button onClick={() => handleUpdateStatus(r.id, 'COMPLETED')} className="btn btn-primary" style={{ padding: '0.25rem 0.55rem', fontSize: '0.75rem' }}>
                             Complete
+                          </button>
+                        )}
+                        {r.status === 'GENERATED' && (
+                          <button onClick={() => handleUpdateStatus(r.id, 'REJECTED')} className="btn btn-outline" style={{ padding: '0.25rem 0.55rem', fontSize: '0.75rem', color: '#dc2626', borderColor: '#fca5a5' }}>
+                            Reject
                           </button>
                         )}
                       </div>

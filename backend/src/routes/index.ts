@@ -29,6 +29,7 @@ import * as securityCtrl from '../controllers/securityController';
 import * as mfaCtrl from '../controllers/mfaController';
 import * as sessionCtrl from '../controllers/sessionController';
 import * as appointmentCtrl from '../controllers/appointmentController';
+import * as doctorVerificationCtrl from '../controllers/doctorVerificationController';
 
 const router = Router();
 
@@ -42,6 +43,7 @@ router.post('/appointments/book', authenticate, appointmentCtrl.bookAppointment)
 router.get('/appointments/my-appointments', authenticate, appointmentCtrl.getMyAppointmens);
 router.get('/appointments/doctor/requests', authenticate, authorize(['DOCTOR']), appointmentCtrl.getDoctorAppointmentRequests);
 router.put('/appointments/:id/status', authenticate, authorize(['DOCTOR']), appointmentCtrl.updateAppointmentStatus);
+router.patch('/appointments/:id/status', authenticate, authorize(['DOCTOR']), appointmentCtrl.updateAppointmentStatus);
 router.post('/appointments/:id/cancel', authenticate, appointmentCtrl.cancelAppointment);
 
 // --- Auth Routes ---
@@ -54,6 +56,9 @@ router.post('/auth/avatar', authenticate, authCtrl.avatarUploadMiddleware, authC
 router.post('/auth/banner', authenticate, authCtrl.bannerUploadMiddleware, authCtrl.uploadBanner);
 router.post('/auth/password-reset/request', passwordResetRateLimiter, passwordResetCtrl.requestPasswordReset);
 router.post('/auth/password-reset/reset', passwordResetCtrl.resetPassword);
+router.post('/auth/social-login', authCtrl.socialLogin);
+router.post('/auth/send-verification-email', authenticate, authCtrl.sendVerificationEmail);
+router.post('/auth/verify-email', authenticate, authCtrl.verifyEmail);
 
 // --- Security Routes ---
 router.get('/security/settings', authenticate, securityCtrl.getSecuritySettings);
@@ -176,5 +181,19 @@ router.delete('/identity-documents/:id', authenticate, requireDocumentAccess, id
 router.get('/verification/requests', authenticate, authorize(['ADMIN']), identityDocCtrl.getAllVerificationRequests);
 router.post('/verification/requests/:id/review', authenticate, authorize(['ADMIN']), identityDocCtrl.reviewVerificationRequest);
 router.get('/verification/stats', authenticate, authorize(['ADMIN']), identityDocCtrl.getVerificationStats);
+
+// --- Doctor Verification Routes ---
+router.get('/doctors/verification/status', authenticate, authorize(['DOCTOR']), doctorVerificationCtrl.getDoctorVerificationStatus);
+router.post('/doctors/verification/upload', authenticate, authorize(['DOCTOR']), doctorVerificationCtrl.doctorDocumentUploadMiddleware, doctorVerificationCtrl.uploadDoctorDocument);
+router.post('/doctors/verification/submit', authenticate, authorize(['DOCTOR']), doctorVerificationCtrl.submitDoctorVerification);
+router.delete('/doctors/verification/documents/:id', authenticate, authorize(['DOCTOR']), doctorVerificationCtrl.deleteDoctorDocument);
+router.get('/doctors/verification/documents/:id/view', doctorVerificationCtrl.viewDoctorDocument);
+
+// --- Admin Doctor Verification Management Routes ---
+router.get('/admin/doctors/verifications', authenticate, authorize(['ADMIN']), doctorVerificationCtrl.adminGetDoctorVerifications);
+router.post('/admin/doctors/:doctorId/verify', authenticate, authorize(['ADMIN']), doctorVerificationCtrl.adminApproveDoctor);
+router.post('/admin/doctors/:doctorId/reject', authenticate, authorize(['ADMIN']), doctorVerificationCtrl.adminRejectDoctor);
+router.post('/admin/doctors/:doctorId/suspend', authenticate, authorize(['ADMIN']), doctorVerificationCtrl.adminSuspendDoctor);
+router.post('/admin/doctors/:doctorId/reactivate', authenticate, authorize(['ADMIN']), doctorVerificationCtrl.adminReactivateDoctor);
 
 export default router;

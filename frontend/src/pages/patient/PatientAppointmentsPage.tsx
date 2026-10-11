@@ -18,6 +18,7 @@ import {
   X,
   CreditCard,
   MessageSquare,
+  ShieldCheck,
 } from 'lucide-react';
 import api from '../../services/api';
 
@@ -498,68 +499,106 @@ export const PatientAppointmentsPage: React.FC<PatientAppointmentsPageProps> = (
           </div>
 
           {/* Verified Doctors Directory */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.25rem' }}>
-            {filteredDoctors.map((doc) => {
-              const isSelected = selectedDoctor?.id === doc.id;
-              return (
-                <div
-                  key={doc.id}
-                  style={{
-                    background: '#ffffff',
-                    border: `2px solid ${isSelected ? '#0284c7' : '#e2e8f0'}`,
-                    borderRadius: 16,
-                    padding: '1.35rem',
-                    boxShadow: isSelected ? '0 4px 16px rgba(2, 132, 199, 0.15)' : '0 2px 8px rgba(15, 23, 42, 0.04)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    gap: '1rem',
-                  }}
-                >
-                  <div style={{ display: 'flex', gap: '1rem' }}>
-                    <div
-                      style={{
-                        width: 56,
-                        height: 56,
-                        borderRadius: '50%',
-                        background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)',
-                        color: 'white',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: 800,
-                        fontSize: '1.2rem',
-                        overflow: 'hidden',
-                        flexShrink: 0,
-                      }}
-                    >
-                      {doc.user?.avatarUrl ? (
-                        <img
-                          src={doc.user.avatarUrl.startsWith('http') ? doc.user.avatarUrl : `http://localhost:5000${doc.user.avatarUrl}`}
-                          alt={doc.user?.name}
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                        />
-                      ) : (
-                        doc.user?.name ? doc.user.name.split(' ').map((n: string) => n[0]).slice(0, 2).join('') : 'DR'
-                      )}
-                    </div>
-                    <div>
-                      <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
-                        {doc.user?.name || 'Dr. Practitioner'}
-                      </h3>
-                      <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#0284c7', marginTop: '2px' }}>
-                        {doc.specialty}
+          {filteredDoctors.length === 0 ? (
+            <div
+              style={{
+                background: '#ffffff',
+                borderRadius: 16,
+                padding: '3rem 1.5rem',
+                textAlign: 'center',
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 2px 8px rgba(15, 23, 42, 0.04)',
+              }}
+            >
+              <ShieldCheck size={44} color="#94a3b8" style={{ margin: '0 auto 0.75rem auto' }} />
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a', margin: '0 0 0.35rem 0' }}>
+                No verified doctors are currently available.
+              </h3>
+              <p style={{ fontSize: '0.84rem', color: '#64748b', margin: 0 }}>
+                Appointments are available only with verified and active medical practitioners. Please check back shortly.
+              </p>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.25rem' }}>
+              {filteredDoctors.map((doc) => {
+                const isSelected = selectedDoctor?.id === doc.id;
+                return (
+                  <div
+                    key={doc.id}
+                    style={{
+                      background: '#ffffff',
+                      border: `2px solid ${isSelected ? '#0284c7' : '#e2e8f0'}`,
+                      borderRadius: 16,
+                      padding: '1.35rem',
+                      boxShadow: isSelected ? '0 4px 16px rgba(2, 132, 199, 0.15)' : '0 2px 8px rgba(15, 23, 42, 0.04)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      gap: '1rem',
+                    }}
+                  >
+                    <div style={{ display: 'flex', gap: '1rem' }}>
+                      <div
+                        style={{
+                          width: 56,
+                          height: 56,
+                          borderRadius: '50%',
+                          background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)',
+                          color: 'white',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: 800,
+                          fontSize: '1.2rem',
+                          overflow: 'hidden',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {doc.user?.avatarUrl ? (
+                          <img
+                            src={doc.user.avatarUrl.startsWith('http') ? doc.user.avatarUrl : `http://localhost:5000${doc.user.avatarUrl}`}
+                            alt={doc.user?.name}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
+                        ) : (
+                          doc.user?.name ? doc.user.name.split(' ').map((n: string) => n[0]).slice(0, 2).join('') : 'DR'
+                        )}
                       </div>
-                      <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '2px' }}>
-                        {doc.qualification} &bull; {doc.experienceYears} yrs exp.
-                      </div>
-                      {doc.hospital && (
-                        <div style={{ fontSize: '0.76rem', color: '#475569', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                          <Building2 size={12} color="#64748b" /> {doc.hospital.name} ({doc.hospital.district})
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                          <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                            {doc.user?.name || 'Dr. Practitioner'}
+                          </h3>
+                          <span
+                            style={{
+                              fontSize: '0.72rem',
+                              fontWeight: 800,
+                              color: '#047857',
+                              background: '#ecfdf5',
+                              border: '1px solid #a7f3d0',
+                              padding: '0.15rem 0.55rem',
+                              borderRadius: 999,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.25rem',
+                            }}
+                          >
+                            ✓ Verified Doctor
+                          </span>
                         </div>
-                      )}
+                        <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#0284c7', marginTop: '3px' }}>
+                          {doc.specialty}
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '2px' }}>
+                          {doc.qualification} &bull; {doc.experienceYears} yrs exp.
+                        </div>
+                        {doc.hospital && (
+                          <div style={{ fontSize: '0.76rem', color: '#475569', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                            <Building2 size={12} color="#64748b" /> {doc.hospital.name} ({doc.hospital.district})
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
 
                   <button
                     onClick={() => {
@@ -588,6 +627,7 @@ export const PatientAppointmentsPage: React.FC<PatientAppointmentsPageProps> = (
               );
             })}
           </div>
+          )}
         </div>
       )}
 
@@ -623,10 +663,15 @@ export const PatientAppointmentsPage: React.FC<PatientAppointmentsPageProps> = (
             {/* Modal Header */}
             <div style={{ padding: '1.25rem 1.5rem', background: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%)', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0 }}>
-                  Book Appointment with {selectedDoctor.user?.name}
-                </h3>
-                <div style={{ fontSize: '0.78rem', color: '#93c5fd', marginTop: '2px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0 }}>
+                    Book Appointment with {selectedDoctor.user?.name}
+                  </h3>
+                  <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#ecfdf5', background: 'rgba(16, 185, 129, 0.25)', border: '1px solid #10b981', padding: '0.15rem 0.5rem', borderRadius: 999 }}>
+                    ✓ Verified Doctor
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.78rem', color: '#93c5fd', marginTop: '3px' }}>
                   {selectedDoctor.specialty} &bull; {selectedDoctor.hospital?.name || 'SmartHealth Clinic'}
                 </div>
               </div>

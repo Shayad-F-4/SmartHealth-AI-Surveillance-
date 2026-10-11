@@ -468,10 +468,14 @@ const AppContent: React.FC = () => {
   );
 };
 
+import { LocationProvider } from './context/LocationContext';
+
 export function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <LocationProvider>
+        <AppContent />
+      </LocationProvider>
     </AuthProvider>
   );
 }

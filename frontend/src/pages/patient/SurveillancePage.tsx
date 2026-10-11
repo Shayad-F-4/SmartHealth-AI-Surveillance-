@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useLocation } from '../../context/LocationContext';
 import {
   Eye,
   Shield,
@@ -61,7 +62,8 @@ const NEARBY_SIGNALS: NearbySignal[] = [
 
 export const SurveillancePage: React.FC<{ onNavigate?: (tab: string) => void }> = ({ onNavigate }) => {
   const { user } = useAuth();
-  const district = user?.patient?.district || 'Riverside District';
+  const { locationDetails } = useLocation();
+  const district = locationDetails?.displayHeader || locationDetails?.locality || user?.patient?.district || 'Location unavailable';
   const [districtAlerts, setDistrictAlerts] = useState<any[]>([]);
   const [selectedSignal, setSelectedSignal] = useState<NearbySignal | null>(null);
 
@@ -69,8 +71,9 @@ export const SurveillancePage: React.FC<{ onNavigate?: (tab: string) => void }> 
     const fetchAlerts = async () => {
       try {
         const res = await api.get('/alerts');
+        const searchDistrict = locationDetails?.district || locationDetails?.city || user?.patient?.district;
         const active = res.data.filter(
-          (a: any) => a.isActive && a.district?.toLowerCase() === district.toLowerCase()
+          (a: any) => a.isActive && searchDistrict && a.district?.toLowerCase() === searchDistrict.toLowerCase()
         );
         setDistrictAlerts(active);
       } catch {

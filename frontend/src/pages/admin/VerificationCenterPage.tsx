@@ -1,747 +1,646 @@
 import React, { useState, useEffect } from 'react';
 import {
-  CheckCircle2,
-  XCircle,
-  AlertCircle,
-  Clock,
-  FileText,
-  User as UserIcon,
-  Filter,
-  Search,
   ShieldCheck,
+  CheckCircle2,
+  Clock,
+  XCircle,
+  AlertTriangle,
+  RefreshCw,
+  Search,
+  Filter,
+  Eye,
+  Check,
+  X,
+  FileText,
+  User,
+  Shield,
   FileCheck,
   FileX,
-  RefreshCw,
-  ChevronRight,
-  BadgeCheck,
-  X,
-  User,
-  Stethoscope,
-  Calendar,
-  Award,
   ExternalLink,
-  Info,
-  AlertTriangle,
-  Check,
-  Loader2,
+  Ban,
+  UserCheck,
+  Stethoscope,
+  Building2,
+  AlertCircle,
 } from 'lucide-react';
 import api from '../../services/api';
 
-interface VerificationRequest {
+interface DoctorVerificationRecord {
   id: string;
-  requestType: string;
-  aiDecision?: string;
-  aiConfidence?: number;
-  reviewDecision?: string;
-  reviewReason?: string;
-  reviewDate?: string;
+  licenseNumber: string;
+  specialty: string;
+  qualification: string;
+  experienceYears: number;
+  verificationStatus: string;
+  isActive: boolean;
+  verifiedBy?: string;
+  verifiedAt?: string;
+  rejectionReason?: string;
+  reviewedAt?: string;
   createdAt: string;
-  verificationHistory?: string;
-  document: {
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    phone?: string;
+    avatarUrl?: string;
+    createdAt: string;
+  };
+  hospital?: {
+    id: string;
+    name: string;
+    district: string;
+  };
+  doctorDocuments: Array<{
     id: string;
     documentType: string;
-    verificationStatus: string;
+    fileName: string;
+    fileSize: number;
+    mimeType: string;
+    status: string;
+    isRequired: boolean;
     uploadedAt: string;
-    expiryDate?: string;
-    documentNumber?: string;
-    user: {
-      id: string;
-      name: string;
-      role: string;
-      email: string;
-    };
-  };
-}
-
-interface VerificationStats {
-  pendingPatientVerifications: number;
-  pendingDoctorVerifications: number;
-  verified: number;
-  rejected: number;
-  reviewRequired: number;
+    rejectionReason?: string;
+  }>;
 }
 
 export const VerificationCenterPage: React.FC = () => {
-  const [requests, setRequests] = useState<VerificationRequest[]>([]);
-  const [stats, setStats] = useState<VerificationStats | null>(null);
+  const [activeTab, setActiveTab] = useState<'doctors' | 'documents'>('doctors');
+
+  // Doctor Verifications State
+  const [doctors, setDoctors] = useState<DoctorVerificationRecord[]>([]);
+  const [selectedDoctor, setSelectedDoctor] = useState<DoctorVerificationRecord | null>(null);
+  const [doctorFilter, setDoctorFilter] = useState<string>('ALL');
+  const [doctorSearch, setDoctorSearch] = useState<string>('');
+
+  // Modals & Action State
+  const [actionLoading, setActionLoading] = useState(false);
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [rejectionReasonInput, setRejectionReasonInput] = useState('');
+  const [suspendModalOpen, setSuspendModalOpen] = useState(false);
+  const [suspensionReasonInput, setSuspensionReasonInput] = useState('');
+
+  // Common UI State
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedRequest, setSelectedRequest] = useState<VerificationRequest | null>(null);
-  const [filter, setFilter] = useState<string>('all');
-  const [roleFilter, setRoleFilter] = useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [reviewReason, setReviewReason] = useState('');
-  const [reviewing, setReviewing] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string>('');
 
-  useEffect(() => {
-    fetchData();
-  }, [filter, roleFilter]);
-
-  const fetchData = async () => {
+  const fetchDoctorVerifications = async () => {
     setLoading(true);
-    setError(null);
     try {
-      const params = new URLSearchParams();
-      if (filter !== 'all') {
-        params.append('status', filter);
-      }
-      if (roleFilter !== 'all') {
-        params.append('requestType', roleFilter);
-      }
-
-      const [requestsRes, statsRes] = await Promise.all([
-        api.get(`/verification/requests${params.toString() ? `?${params.toString()}` : ''}`),
-        api.get('/verification/stats'),
-      ]);
-      setRequests(requestsRes.data);
-      setStats(statsRes.data);
+      const res = await api.get('/admin/doctors/verifications');
+      setDoctors(res.data.doctors || []);
       setLastUpdated(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }));
     } catch (err: any) {
-      console.error('Failed to fetch verification data:', err);
-      setError('Failed to load verification requests. Please try again.');
+      console.error('Failed to fetch doctor verifications:', err);
+      setNotification({ type: 'error', text: 'Failed to load doctor verification queue.' });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleReview = async (decision: 'APPROVED' | 'REJECTED' | 'REQUEST_INFO') => {
-    if (!selectedRequest) return;
+  useEffect(() => {
+    fetchDoctorVerifications();
+  }, []);
 
-    if (decision !== 'APPROVED' && !reviewReason.trim()) {
-      setNotification({ type: 'error', text: 'Reason is required for this decision' });
+  // Action: Approve Doctor
+  const handleApproveDoctor = async (doctorId: string) => {
+    if (!window.confirm('Are you sure you want to approve this doctor? They will immediately become eligible to receive patient appointments.')) return;
+
+    setActionLoading(true);
+    try {
+      await api.post(`/admin/doctors/${doctorId}/verify`);
+      setNotification({ type: 'success', text: 'Doctor approved & verified successfully! Eligible for patient bookings.' });
+      if (selectedDoctor?.id === doctorId) setSelectedDoctor(null);
+      await fetchDoctorVerifications();
+    } catch (err: any) {
+      setNotification({ type: 'error', text: err.response?.data?.error || 'Failed to verify doctor.' });
+    } finally {
+      setActionLoading(false);
+      setTimeout(() => setNotification(null), 5000);
+    }
+  };
+
+  // Action: Reject Doctor
+  const handleConfirmReject = async () => {
+    if (!selectedDoctor) return;
+    if (!rejectionReasonInput.trim()) {
+      alert('Please provide a specific rejection reason for the doctor.');
       return;
     }
 
-    setReviewing(true);
+    setActionLoading(true);
     try {
-      await api.post(`/verification/requests/${selectedRequest.id}/review`, {
-        decision,
-        reason: reviewReason,
+      await api.post(`/admin/doctors/${selectedDoctor.id}/reject`, {
+        rejectionReason: rejectionReasonInput.trim(),
       });
-
-      setNotification({ type: 'success', text: `Verification ${decision.toLowerCase()} successfully` });
-      setSelectedRequest(null);
-      setReviewReason('');
-      await fetchData();
+      setNotification({ type: 'success', text: `Doctor verification rejected. Reason logged and notification sent.` });
+      setRejectModalOpen(false);
+      setRejectionReasonInput('');
+      setSelectedDoctor(null);
+      await fetchDoctorVerifications();
     } catch (err: any) {
-      setNotification({ type: 'error', text: err.response?.data?.error || 'Failed to review request' });
+      setNotification({ type: 'error', text: err.response?.data?.error || 'Failed to reject verification.' });
     } finally {
-      setReviewing(false);
-      setTimeout(() => setNotification(null), 4000);
+      setActionLoading(false);
+      setTimeout(() => setNotification(null), 5000);
     }
   };
 
-  const handleViewDocument = async (documentId: string) => {
+  // Action: Suspend Doctor
+  const handleConfirmSuspend = async () => {
+    if (!selectedDoctor) return;
+
+    setActionLoading(true);
     try {
-      const token = localStorage.getItem('smarthealth_token');
-      window.open(`http://localhost:5000/api/identity-documents/${documentId}/view?token=${token}`, '_blank');
-    } catch (err) {
-      setNotification({ type: 'error', text: 'Failed to view document' });
+      await api.post(`/admin/doctors/${selectedDoctor.id}/suspend`, {
+        reason: suspensionReasonInput.trim() || 'Suspended by system administrator',
+      });
+      setNotification({ type: 'success', text: 'Doctor account suspended from receiving new appointments.' });
+      setSuspendModalOpen(false);
+      setSuspensionReasonInput('');
+      setSelectedDoctor(null);
+      await fetchDoctorVerifications();
+    } catch (err: any) {
+      setNotification({ type: 'error', text: err.response?.data?.error || 'Failed to suspend doctor.' });
+    } finally {
+      setActionLoading(false);
+      setTimeout(() => setNotification(null), 5000);
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    const config: any = {
-      UNVERIFIED: { color: 'bg-slate-100 text-slate-700 border-slate-200', icon: Clock, label: 'Unverified' },
-      DOCUMENTS_PENDING: { color: 'bg-amber-50 text-amber-700 border-amber-200', icon: Clock, label: 'Pending' },
-      PROCESSING: { color: 'bg-blue-50 text-blue-700 border-blue-200', icon: Loader2, label: 'Processing' },
-      AI_REVIEW: { color: 'bg-purple-50 text-purple-700 border-purple-200', icon: Search, label: 'AI Review' },
-      ADMIN_REVIEW: { color: 'bg-orange-50 text-orange-700 border-orange-200', icon: UserIcon, label: 'Admin Review' },
-      VERIFIED: { color: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: CheckCircle2, label: 'Verified' },
-      REVIEW_REQUIRED: { color: 'bg-amber-50 text-amber-700 border-amber-200', icon: AlertTriangle, label: 'Review Required' },
-      REJECTED: { color: 'bg-rose-50 text-rose-700 border-rose-200', icon: XCircle, label: 'Rejected' },
-      EXPIRED: { color: 'bg-gray-50 text-gray-700 border-gray-200', icon: XCircle, label: 'Expired' },
-    };
+  // Action: Reactivate Doctor
+  const handleReactivateDoctor = async (doctorId: string) => {
+    if (!window.confirm('Reactivate this doctor account? They will be eligible for new appointments.')) return;
 
-    const c = config[status] || config.UNVERIFIED;
-    const Icon = c.icon;
-    return (
-      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${c.color}`}>
-        <Icon size={12} />
-        {c.label}
-      </span>
-    );
-  };
-
-  const getRoleBadge = (role: string) => {
-    const config: any = {
-      PATIENT: { color: 'bg-cyan-50 text-cyan-700 border-cyan-200', icon: User, label: 'PATIENT' },
-      DOCTOR: { color: 'bg-indigo-50 text-indigo-700 border-indigo-200', icon: Stethoscope, label: 'DOCTOR' },
-      ADMIN: { color: 'bg-slate-50 text-slate-700 border-slate-200', icon: BadgeCheck, label: 'ADMIN' },
-    };
-
-    const c = config[role] || config.PATIENT;
-    const Icon = c.icon;
-    return (
-      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${c.color}`}>
-        <Icon size={10} />
-        {c.label}
-      </span>
-    );
-  };
-
-  const getDocumentIcon = (documentType: string) => {
-    const type = documentType.toLowerCase();
-    if (type.includes('medical') || type.includes('registration') || type.includes('certificate') || type.includes('degree')) {
-      return <Award size={18} className="text-indigo-600" />;
+    setActionLoading(true);
+    try {
+      await api.post(`/admin/doctors/${doctorId}/reactivate`);
+      setNotification({ type: 'success', text: 'Doctor account reactivated successfully.' });
+      if (selectedDoctor?.id === doctorId) setSelectedDoctor(null);
+      await fetchDoctorVerifications();
+    } catch (err: any) {
+      setNotification({ type: 'error', text: err.response?.data?.error || 'Failed to reactivate doctor.' });
+    } finally {
+      setActionLoading(false);
+      setTimeout(() => setNotification(null), 5000);
     }
-    return <FileText size={18} className="text-cyan-600" />;
   };
 
-  const getDocumentCategory = (documentType: string) => {
-    const type = documentType.toLowerCase();
-    if (type.includes('medical') || type.includes('registration') || type.includes('certificate') || type.includes('degree')) {
-      return 'Professional Credential';
-    }
-    return 'Government ID';
+  // View Document in new window with auth token
+  const handleViewDoc = (docId: string) => {
+    const token = localStorage.getItem('smarthealth_token') || localStorage.getItem('token');
+    window.open(`http://localhost:5000/api/doctors/verification/documents/${docId}/view?token=${token}`, '_blank');
   };
 
-  const filteredRequests = requests.filter((req) => {
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      return (
-        req.document.user.name.toLowerCase().includes(query) ||
-        req.document.user.email.toLowerCase().includes(query) ||
-        req.document.documentType.toLowerCase().includes(query)
-      );
+  // Filtered Doctors
+  const filteredDoctors = doctors.filter((doc) => {
+    const status = (doc.verificationStatus || 'PENDING_DOCUMENTS').toUpperCase();
+    if (doctorFilter !== 'ALL' && status !== doctorFilter) return false;
+
+    if (doctorSearch.trim()) {
+      const q = doctorSearch.toLowerCase();
+      const nameMatch = doc.user?.name?.toLowerCase().includes(q);
+      const licenseMatch = doc.licenseNumber?.toLowerCase().includes(q);
+      const specMatch = doc.specialty?.toLowerCase().includes(q);
+      const hospMatch = doc.hospital?.name?.toLowerCase().includes(q);
+      return nameMatch || licenseMatch || specMatch || hospMatch;
     }
+
     return true;
   });
 
-  const requiresAttention = filteredRequests.filter(
-    (req) =>
-      req.document.verificationStatus === 'REVIEW_REQUIRED' ||
-      req.document.verificationStatus === 'ADMIN_REVIEW'
-  );
+  // Calculate stats
+  const underReviewCount = doctors.filter((d) => d.verificationStatus === 'UNDER_REVIEW').length;
+  const verifiedCount = doctors.filter((d) => d.verificationStatus === 'VERIFIED').length;
+  const rejectedCount = doctors.filter((d) => d.verificationStatus === 'REJECTED').length;
+  const suspendedCount = doctors.filter((d) => d.verificationStatus === 'SUSPENDED').length;
+  const pendingDocsCount = doctors.filter((d) => d.verificationStatus === 'PENDING_DOCUMENTS' || d.verificationStatus === 'UNVERIFIED').length;
 
-  // Loading Skeleton
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-50/50 pb-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
-          {/* Header Skeleton */}
-          <div className="mb-8 flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-slate-200 animate-pulse" />
-              <div className="space-y-2">
-                <div className="h-6 w-64 bg-slate-200 rounded animate-pulse" />
-                <div className="h-4 w-48 bg-slate-200 rounded animate-pulse" />
-              </div>
-            </div>
-            <div className="h-9 w-24 bg-slate-200 rounded-lg animate-pulse" />
-          </div>
-
-          {/* Stats Cards Skeleton */}
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-                <div className="h-6 w-24 bg-slate-200 rounded animate-pulse mb-3" />
-                <div className="h-8 w-16 bg-slate-200 rounded animate-pulse mb-2" />
-                <div className="h-4 w-20 bg-slate-200 rounded animate-pulse" />
-              </div>
-            ))}
-          </div>
-
-          {/* Filter Skeleton */}
-          <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6 flex items-center gap-4">
-            <div className="h-9 w-32 bg-slate-200 rounded-lg animate-pulse" />
-            <div className="flex-1 h-9 bg-slate-200 rounded-lg animate-pulse" />
-          </div>
-
-          {/* Table Skeleton */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="h-12 bg-slate-50 border-b border-slate-200" />
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="h-16 border-b border-slate-100 flex items-center px-4 gap-4">
-                <div className="w-8 h-8 rounded-full bg-slate-200 animate-pulse" />
-                <div className="flex-1 space-y-2">
-                  <div className="h-4 w-32 bg-slate-200 rounded animate-pulse" />
-                  <div className="h-3 w-24 bg-slate-200 rounded animate-pulse" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Error State
-  if (error) {
-    return (
-      <div className="min-h-screen bg-slate-50/50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center mx-auto mb-4">
-            <AlertCircle size={32} className="text-rose-600" />
-          </div>
-          <h3 className="text-lg font-semibold text-slate-900 mb-2">Unable to load verification requests</h3>
-          <p className="text-sm text-slate-600 mb-4">{error}</p>
-          <button
-            onClick={fetchData}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-cyan-600 hover:bg-cyan-700 rounded-lg transition-colors"
-          >
-            <RefreshCw size={16} />
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'VERIFIED':
+        return (
+          <span style={{ fontSize: '0.74rem', fontWeight: 800, padding: '0.2rem 0.65rem', borderRadius: 999, background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+            <CheckCircle2 size={13} /> ✓ Verified Doctor
+          </span>
+        );
+      case 'UNDER_REVIEW':
+        return (
+          <span style={{ fontSize: '0.74rem', fontWeight: 800, padding: '0.2rem 0.65rem', borderRadius: 999, background: '#fffbeb', color: '#b45309', border: '1px solid #fde68a', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+            <Clock size={13} /> ◷ Verification Pending
+          </span>
+        );
+      case 'REJECTED':
+        return (
+          <span style={{ fontSize: '0.74rem', fontWeight: 800, padding: '0.2rem 0.65rem', borderRadius: 999, background: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+            <XCircle size={13} /> ✕ Verification Rejected
+          </span>
+        );
+      case 'SUSPENDED':
+        return (
+          <span style={{ fontSize: '0.74rem', fontWeight: 800, padding: '0.2rem 0.65rem', borderRadius: 999, background: '#1e293b', color: '#fbbf24', border: '1px solid #475569', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+            <AlertTriangle size={13} /> ⚠ Verification Suspended
+          </span>
+        );
+      default:
+        return (
+          <span style={{ fontSize: '0.74rem', fontWeight: 800, padding: '0.2rem 0.65rem', borderRadius: 999, background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+            <Clock size={13} /> ◷ Documents Required
+          </span>
+        );
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-slate-50/50 pb-12">
-      {/* Notification */}
+    <div style={{ maxWidth: 1280, margin: '0 auto', paddingBottom: '3rem' }}>
+      {/* Toast Notification */}
       {notification && (
         <div
-          className={`fixed top-5 right-5 z-50 px-4 py-3 rounded-2xl shadow-xl border flex items-center gap-3 text-xs font-semibold animate-in slide-in-from-right-2 duration-300 ${
-            notification.type === 'success' ? 'bg-emerald-900 text-emerald-100 border-emerald-700' : 'bg-rose-900 text-rose-100 border-rose-700'
-          }`}
+          style={{
+            position: 'fixed',
+            top: '20px',
+            right: '20px',
+            zIndex: 100,
+            padding: '12px 18px',
+            borderRadius: '16px',
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
+            border: `1px solid ${notification.type === 'success' ? '#047857' : '#be123c'}`,
+            background: notification.type === 'success' ? '#064e3b' : '#881337',
+            color: notification.type === 'success' ? '#ecfdf5' : '#fff1f2',
+            fontSize: '0.85rem',
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.6rem',
+          }}
         >
-          {notification.type === 'success' ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
-          {notification.text}
+          {notification.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+          <span>{notification.text}</span>
         </div>
       )}
 
-      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '1.5rem 1.5rem 3rem 1.5rem' }}>
-        {/* Page Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.75rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-            <div
-              style={{
-                width: 46,
-                height: 46,
-                borderRadius: 14,
-                background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)',
-                color: '#ffffff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 4px 14px rgba(2, 132, 199, 0.25)',
-              }}
-            >
-              <ShieldCheck size={24} />
-            </div>
-            <div>
-              <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
-                Identity &amp; Credential Verification
-              </h1>
-              <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0.2rem 0 0 0' }}>
-                Verification Center &bull; Review identity documents and professional credentials securely
-              </p>
-            </div>
+      {/* Top Banner Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 14,
+              background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)',
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 4px 14px rgba(2, 132, 199, 0.25)',
+            }}
+          >
+            <ShieldCheck size={26} />
           </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            {lastUpdated && (
-              <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: 600 }}>Last updated: {lastUpdated}</span>
-            )}
-            <button
-              onClick={fetchData}
-              style={{
-                padding: '0.5rem 1rem',
-                borderRadius: 8,
-                border: '1px solid #cbd5e1',
-                background: '#ffffff',
-                color: '#334155',
-                fontSize: '0.82rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.45rem',
-                boxShadow: '0 2px 6px rgba(15, 23, 42, 0.04)',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <RefreshCw size={15} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
-              <span>Refresh</span>
-            </button>
+          <div>
+            <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
+              Doctor Credential Verification Center
+            </h1>
+            <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0.2rem 0 0 0' }}>
+              Admin Verification Queue &bull; Enforce mandatory practitioner registration &amp; appointment eligibility
+            </p>
           </div>
         </div>
 
-        {/* Summary Cards */}
-        {stats && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.75rem' }}>
-            {/* Pending Patient */}
-            <div
-              onClick={() => {
-                setFilter('all');
-                setRoleFilter('PATIENT_IDENTITY');
-              }}
-              style={{
-                background: '#ffffff',
-                border: '1px solid #e2e8f0',
-                borderRadius: 14,
-                padding: '1.15rem 1.25rem',
-                boxShadow: '0 2px 8px rgba(15, 23, 42, 0.04)',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
-                <UserIcon size={18} color="#0284c7" />
-                <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Pending Patient</span>
-              </div>
-              <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a' }}>{stats.pendingPatientVerifications}</div>
-              <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.2rem' }}>Awaiting review</div>
-            </div>
-
-            {/* Pending Doctor */}
-            <div
-              onClick={() => {
-                setFilter('all');
-                setRoleFilter('DOCTOR_CREDENTIAL');
-              }}
-              style={{
-                background: '#ffffff',
-                border: '1px solid #e2e8f0',
-                borderRadius: 14,
-                padding: '1.15rem 1.25rem',
-                boxShadow: '0 2px 8px rgba(15, 23, 42, 0.04)',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
-                <FileCheck size={18} color="#7c3aed" />
-                <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Pending Doctor</span>
-              </div>
-              <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a' }}>{stats.pendingDoctorVerifications}</div>
-              <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.2rem' }}>Credentials review</div>
-            </div>
-
-            {/* Review Required */}
-            <div
-              onClick={() => setFilter('REVIEW_REQUIRED')}
-              style={{
-                background: '#ffffff',
-                border: '1px solid #fde68a',
-                borderRadius: 14,
-                padding: '1.15rem 1.25rem',
-                boxShadow: '0 2px 8px rgba(15, 23, 42, 0.04)',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
-                <AlertTriangle size={18} color="#d97706" />
-                <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Review Required</span>
-              </div>
-              <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#d97706' }}>{stats.reviewRequired}</div>
-              <div style={{ fontSize: '0.75rem', color: '#b45309', marginTop: '0.2rem' }}>Needs attention</div>
-            </div>
-
-            {/* Verified */}
-            <div
-              onClick={() => setFilter('VERIFIED')}
-              style={{
-                background: '#ffffff',
-                border: '1px solid #bbf7d0',
-                borderRadius: 14,
-                padding: '1.15rem 1.25rem',
-                boxShadow: '0 2px 8px rgba(15, 23, 42, 0.04)',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
-                <CheckCircle2 size={18} color="#16a34a" />
-                <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#15803d', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Verified</span>
-              </div>
-              <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#16a34a' }}>{stats.verified}</div>
-              <div style={{ fontSize: '0.75rem', color: '#15803d', marginTop: '0.2rem' }}>Successfully verified</div>
-            </div>
-
-            {/* Rejected */}
-            <div
-              onClick={() => setFilter('REJECTED')}
-              style={{
-                background: '#ffffff',
-                border: '1px solid #fecaca',
-                borderRadius: 14,
-                padding: '1.15rem 1.25rem',
-                boxShadow: '0 2px 8px rgba(15, 23, 42, 0.04)',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
-                <FileX size={18} color="#dc2626" />
-                <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#b91c1c', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Rejected</span>
-              </div>
-              <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#dc2626' }}>{stats.rejected}</div>
-              <div style={{ fontSize: '0.75rem', color: '#b91c1c', marginTop: '0.2rem' }}>Requires correction</div>
-            </div>
-          </div>
-        )}
-
-        {/* Requires Attention Section */}
-        {requiresAttention.length > 0 && (
-          <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 14, padding: '1.25rem', marginBottom: '1.75rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.85rem' }}>
-              <AlertTriangle size={18} color="#d97706" />
-              <h3 style={{ fontSize: '0.85rem', fontWeight: 800, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.04em', margin: 0 }}>
-                Requires Attention ({requiresAttention.length})
-              </h3>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-              {requiresAttention.slice(0, 3).map((req) => (
-                <div
-                  key={req.id}
-                  onClick={() => setSelectedRequest(req)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '0.75rem 1rem',
-                    borderRadius: 10,
-                    background: '#ffffff',
-                    border: '1px solid #fef3c7',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#f1f5f9', color: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem', fontWeight: 800 }}>
-                      {req.document.user.name.charAt(0)}
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>{req.document.user.name}</div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.15rem' }}>
-                        {getRoleBadge(req.document.user.role)}
-                        <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{req.document.documentType.replace(/_/g, ' ')}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    {getStatusBadge(req.document.verificationStatus)}
-                    <ChevronRight size={16} color="#94a3b8" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Filter Toolbar */}
-        <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 14, padding: '1rem 1.25rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', boxShadow: '0 2px 8px rgba(15, 23, 42, 0.04)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Filter size={15} color="#64748b" />
-            <select
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              style={{ padding: '0.45rem 0.75rem', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: '0.82rem', background: '#ffffff', color: '#0f172a' }}
-            >
-              <option value="all">All Status</option>
-              <option value="ADMIN_REVIEW">Admin Review</option>
-              <option value="REVIEW_REQUIRED">Review Required</option>
-              <option value="VERIFIED">Verified</option>
-              <option value="REJECTED">Rejected</option>
-              <option value="PROCESSING">Processing</option>
-            </select>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <select
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
-              style={{ padding: '0.45rem 0.75rem', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: '0.82rem', background: '#ffffff', color: '#0f172a' }}
-            >
-              <option value="all">All Roles</option>
-              <option value="PATIENT_IDENTITY">Patient</option>
-              <option value="DOCTOR_CREDENTIAL">Doctor</option>
-            </select>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: 220 }}>
-            <Search size={15} color="#64748b" />
-            <input
-              type="text"
-              placeholder="Search by name, email, or document type..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ flex: 1, padding: '0.45rem 0.75rem', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: '0.82rem', outline: 'none' }}
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                style={{ padding: '0.35rem 0.65rem', borderRadius: 6, border: 'none', background: '#f1f5f9', color: '#475569', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
-              >
-                Clear
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Verification Requests Table */}
-        <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 14, overflow: 'hidden', boxShadow: '0 2px 8px rgba(15, 23, 42, 0.04)' }}>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-              <thead>
-                <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                  <th style={{ padding: '0.75rem 1.25rem', fontSize: '0.72rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>User</th>
-                  <th style={{ padding: '0.75rem 1.25rem', fontSize: '0.72rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Document</th>
-                  <th style={{ padding: '0.75rem 1.25rem', fontSize: '0.72rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Submitted</th>
-                  <th style={{ padding: '0.75rem 1.25rem', fontSize: '0.72rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>AI Analysis</th>
-                  <th style={{ padding: '0.75rem 1.25rem', fontSize: '0.72rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Status</th>
-                  <th style={{ padding: '0.75rem 1.25rem', fontSize: '0.72rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredRequests.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} style={{ padding: '3rem 1.5rem', textAlign: 'center', color: '#64748b' }}>
-                      <FileText size={48} color="#cbd5e1" style={{ margin: '0 auto 0.75rem auto', display: 'block' }} />
-                      <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#475569' }}>No verification requests found</div>
-                      <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '0.25rem' }}>
-                        {filter !== 'all' || roleFilter !== 'all' || searchQuery
-                          ? 'Try adjusting your filter or search terms'
-                          : 'There are currently no pending verification requests'}
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  filteredRequests.map((req) => (
-                    <tr key={req.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '1rem 1.25rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                          <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#f1f5f9', color: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem', fontWeight: 800, flexShrink: 0 }}>
-                            {req.document.user.name.charAt(0)}
-                          </div>
-                          <div>
-                            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>{req.document.user.name}</div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.15rem' }}>
-                              {getRoleBadge(req.document.user.role)}
-                              <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{req.document.user.email}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td style={{ padding: '1rem 1.25rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <div style={{ padding: '0.35rem', borderRadius: 6, background: '#f1f5f9', display: 'flex', alignItems: 'center' }}>
-                            {getDocumentIcon(req.document.documentType)}
-                          </div>
-                          <div>
-                            <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#0f172a' }}>{req.document.documentType.replace(/_/g, ' ')}</div>
-                            <div style={{ fontSize: '0.72rem', color: '#64748b' }}>{getDocumentCategory(req.document.documentType)}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td style={{ padding: '1rem 1.25rem', fontSize: '0.82rem', color: '#475569' }}>
-                        {new Date(req.document.uploadedAt).toLocaleDateString()}
-                      </td>
-                      <td style={{ padding: '1rem 1.25rem' }}>
-                        {req.aiDecision ? (
-                          <div>
-                            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#0f172a' }}>{req.aiDecision}</div>
-                            {req.aiConfidence && req.aiConfidence > 0 ? (
-                              <div style={{ fontSize: '0.72rem', color: '#64748b' }}>{req.aiConfidence.toFixed(0)}% confidence</div>
-                            ) : (
-                              <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Manual review required</div>
-                            )}
-                          </div>
-                        ) : (
-                          <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>AI Unavailable</span>
-                        )}
-                      </td>
-                      <td style={{ padding: '1rem 1.25rem' }}>{getStatusBadge(req.document.verificationStatus)}</td>
-                      <td style={{ padding: '1rem 1.25rem' }}>
-                        <button
-                          onClick={() => setSelectedRequest(req)}
-                          style={{
-                            padding: '0.4rem 0.85rem',
-                            borderRadius: 6,
-                            border: 'none',
-                            background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)',
-                            color: '#ffffff',
-                            fontSize: '0.78rem',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.3rem',
-                            boxShadow: '0 2px 6px rgba(2, 132, 199, 0.25)',
-                          }}
-                        >
-                          <span>Review</span>
-                          <ChevronRight size={14} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          {lastUpdated && (
+            <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: 600 }}>Last checked: {lastUpdated}</span>
+          )}
+          <button
+            onClick={fetchDoctorVerifications}
+            disabled={loading}
+            style={{
+              padding: '0.5rem 1rem',
+              borderRadius: 8,
+              border: '1px solid #cbd5e1',
+              background: '#ffffff',
+              color: '#334155',
+              fontSize: '0.82rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.45rem',
+            }}
+          >
+            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
+            <span>Refresh Queue</span>
+          </button>
         </div>
       </div>
 
-      {/* Review Drawer / Modal */}
-      {selectedRequest && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', padding: '1rem' }}>
-          <div style={{ background: '#ffffff', borderRadius: 20, border: '1px solid #e2e8f0', width: '100%', maxWidth: 640, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 40px rgba(15, 23, 42, 0.2)' }}>
-            <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, background: '#ffffff', zIndex: 10 }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Verification Review</h3>
-              <button
-                onClick={() => setSelectedRequest(null)}
-                style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}
-              >
-                <X size={20} />
-              </button>
-            </div>
+      {/* Metrics Row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+        <div
+          onClick={() => setDoctorFilter('UNDER_REVIEW')}
+          style={{
+            background: '#ffffff',
+            border: `2px solid ${doctorFilter === 'UNDER_REVIEW' ? '#d97706' : '#fde68a'}`,
+            borderRadius: 14,
+            padding: '1.1rem',
+            cursor: 'pointer',
+            boxShadow: '0 2px 6px rgba(15, 23, 42, 0.04)',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#b45309', textTransform: 'uppercase' }}>Under Review</span>
+            <Clock size={16} color="#d97706" />
+          </div>
+          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#d97706' }}>{underReviewCount}</div>
+          <div style={{ fontSize: '0.74rem', color: '#b45309' }}>Awaiting Admin approval</div>
+        </div>
 
-            <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              {/* User Information */}
-              <div>
-                <h4 style={{ fontSize: '0.78rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <User size={15} color="#0284c7" /> User Information
-                </h4>
-                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 12, padding: '0.85rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.82rem', color: '#64748b' }}>Name</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>{selectedRequest.document.user.name}</span>
-                      {getRoleBadge(selectedRequest.document.user.role)}
+        <div
+          onClick={() => setDoctorFilter('VERIFIED')}
+          style={{
+            background: '#ffffff',
+            border: `2px solid ${doctorFilter === 'VERIFIED' ? '#16a34a' : '#bbf7d0'}`,
+            borderRadius: 14,
+            padding: '1.1rem',
+            cursor: 'pointer',
+            boxShadow: '0 2px 6px rgba(15, 23, 42, 0.04)',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#15803d', textTransform: 'uppercase' }}>Verified &amp; Active</span>
+            <CheckCircle2 size={16} color="#16a34a" />
+          </div>
+          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#16a34a' }}>{verifiedCount}</div>
+          <div style={{ fontSize: '0.74rem', color: '#15803d' }}>Bookable by patients</div>
+        </div>
+
+        <div
+          onClick={() => setDoctorFilter('REJECTED')}
+          style={{
+            background: '#ffffff',
+            border: `2px solid ${doctorFilter === 'REJECTED' ? '#dc2626' : '#fecaca'}`,
+            borderRadius: 14,
+            padding: '1.1rem',
+            cursor: 'pointer',
+            boxShadow: '0 2px 6px rgba(15, 23, 42, 0.04)',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#b91c1c', textTransform: 'uppercase' }}>Rejected</span>
+            <XCircle size={16} color="#dc2626" />
+          </div>
+          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#dc2626' }}>{rejectedCount}</div>
+          <div style={{ fontSize: '0.74rem', color: '#b91c1c' }}>Corrections requested</div>
+        </div>
+
+        <div
+          onClick={() => setDoctorFilter('SUSPENDED')}
+          style={{
+            background: '#ffffff',
+            border: `2px solid ${doctorFilter === 'SUSPENDED' ? '#475569' : '#cbd5e1'}`,
+            borderRadius: 14,
+            padding: '1.1rem',
+            cursor: 'pointer',
+            boxShadow: '0 2px 6px rgba(15, 23, 42, 0.04)',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>Suspended</span>
+            <AlertTriangle size={16} color="#475569" />
+          </div>
+          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#475569' }}>{suspendedCount}</div>
+          <div style={{ fontSize: '0.74rem', color: '#64748b' }}>Disabled from bookings</div>
+        </div>
+      </div>
+
+      {/* Filter & Search Bar */}
+      <div style={{ background: '#ffffff', borderRadius: 16, border: '1px solid #e2e8f0', padding: '1rem 1.25rem', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+        {/* Status Filter Buttons */}
+        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+          {['ALL', 'UNDER_REVIEW', 'VERIFIED', 'REJECTED', 'SUSPENDED', 'PENDING_DOCUMENTS'].map((st) => (
+            <button
+              key={st}
+              onClick={() => setDoctorFilter(st)}
+              style={{
+                padding: '0.45rem 0.85rem',
+                borderRadius: 8,
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                border: `1px solid ${doctorFilter === st ? '#0284c7' : '#cbd5e1'}`,
+                background: doctorFilter === st ? '#e0f2fe' : '#ffffff',
+                color: doctorFilter === st ? '#0369a1' : '#475569',
+                cursor: 'pointer',
+              }}
+            >
+              {st === 'ALL'
+                ? `All Doctors (${doctors.length})`
+                : st === 'UNDER_REVIEW'
+                ? `Under Review (${underReviewCount})`
+                : st === 'VERIFIED'
+                ? `Verified (${verifiedCount})`
+                : st === 'REJECTED'
+                ? `Rejected (${rejectedCount})`
+                : st === 'SUSPENDED'
+                ? `Suspended (${suspendedCount})`
+                : `Pending Docs (${pendingDocsCount})`}
+            </button>
+          ))}
+        </div>
+
+        {/* Search Input */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#f8fafc', padding: '0.45rem 0.85rem', borderRadius: 10, border: '1px solid #cbd5e1', width: 280 }}>
+          <Search size={16} color="#94a3b8" />
+          <input
+            type="text"
+            placeholder="Search doctor or license..."
+            value={doctorSearch}
+            onChange={(e) => setDoctorSearch(e.target.value)}
+            style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: '0.84rem', width: '100%' }}
+          />
+        </div>
+      </div>
+
+      {/* Doctors Table / Cards */}
+      {loading ? (
+        <div style={{ padding: '3rem', textAlign: 'center', color: '#64748b', background: '#ffffff', borderRadius: 16 }}>
+          <RefreshCw size={24} className="animate-spin" style={{ margin: '0 auto 0.5rem auto' }} />
+          <div>Loading doctors list...</div>
+        </div>
+      ) : filteredDoctors.length === 0 ? (
+        <div style={{ background: '#ffffff', borderRadius: 16, padding: '3rem 1.5rem', textAlign: 'center', border: '1px solid #e2e8f0' }}>
+          <ShieldCheck size={44} color="#94a3b8" style={{ margin: '0 auto 0.75rem auto' }} />
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a', margin: '0 0 0.35rem 0' }}>
+            No doctor records match the filter
+          </h3>
+          <p style={{ fontSize: '0.84rem', color: '#64748b', margin: 0 }}>
+            {doctorFilter !== 'ALL' ? `No doctors with status "${doctorFilter}".` : 'No doctors found in the database.'}
+          </p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {filteredDoctors.map((doc) => {
+            const docStatus = doc.verificationStatus || 'PENDING_DOCUMENTS';
+            const hasRegCert = doc.doctorDocuments.some((d) => d.documentType === 'MEDICAL_REGISTRATION_CERTIFICATE');
+            const hasDegree = doc.doctorDocuments.some((d) => d.documentType === 'MEDICAL_DEGREE');
+            const canApprove = hasRegCert && hasDegree;
+
+            return (
+              <div
+                key={doc.id}
+                style={{
+                  background: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: 16,
+                  padding: '1.35rem 1.5rem',
+                  boxShadow: '0 2px 8px rgba(15, 23, 42, 0.04)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '1.25rem',
+                }}
+              >
+                {/* Doctor Identity Info */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', minWidth: 280 }}>
+                  <div
+                    style={{
+                      width: 52,
+                      height: 52,
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)',
+                      color: 'white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 800,
+                      fontSize: '1.15rem',
+                      overflow: 'hidden',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {doc.user?.avatarUrl ? (
+                      <img src={doc.user.avatarUrl} alt={doc.user?.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      doc.user?.name ? doc.user.name.split(' ').map((n) => n[0]).slice(0, 2).join('') : 'DR'
+                    )}
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                        {doc.user?.name}
+                      </h3>
+                      {getStatusBadge(docStatus)}
+                    </div>
+                    <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#0284c7', marginTop: '2px' }}>
+                      {doc.specialty} &bull; {doc.qualification}
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '2px' }}>
+                      License: <strong style={{ fontFamily: 'monospace' }}>{doc.licenseNumber}</strong>
+                      {doc.hospital && ` &bull; ${doc.hospital.name}`}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.82rem', color: '#64748b' }}>Email</span>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>{selectedRequest.document.user.email}</span>
-                  </div>
                 </div>
-              </div>
 
-              {/* Document Details */}
-              <div>
-                <h4 style={{ fontSize: '0.78rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <FileText size={15} color="#0284c7" /> Document Details
-                </h4>
-                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 12, padding: '0.85rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.82rem', color: '#64748b' }}>Document Type</span>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>{selectedRequest.document.documentType.replace(/_/g, ' ')}</span>
+                {/* Uploaded Documents Indicator */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', minWidth: 220 }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>
+                    Uploaded Credentials ({doc.doctorDocuments.length})
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.82rem', color: '#64748b' }}>Category</span>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>{getDocumentCategory(selectedRequest.document.documentType)}</span>
+                  <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                    <span
+                      style={{
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        padding: '0.15rem 0.45rem',
+                        borderRadius: 6,
+                        background: hasRegCert ? '#ecfdf5' : '#fff1f2',
+                        color: hasRegCert ? '#047857' : '#be123c',
+                        border: `1px solid ${hasRegCert ? '#a7f3d0' : '#fecdd3'}`,
+                      }}
+                    >
+                      {hasRegCert ? '✓ Registration Cert' : '✕ No Reg Cert'}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        padding: '0.15rem 0.45rem',
+                        borderRadius: 6,
+                        background: hasDegree ? '#ecfdf5' : '#fff1f2',
+                        color: hasDegree ? '#047857' : '#be123c',
+                        border: `1px solid ${hasDegree ? '#a7f3d0' : '#fecdd3'}`,
+                      }}
+                    >
+                      {hasDegree ? '✓ Medical Degree' : '✕ No Degree'}
+                    </span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.82rem', color: '#64748b' }}>Uploaded Date</span>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>{new Date(selectedRequest.document.uploadedAt).toLocaleString()}</span>
-                  </div>
-                  <div style={{ paddingTop: '0.5rem', borderTop: '1px solid #e2e8f0' }}>
+                  {doc.rejectionReason && (
+                    <div style={{ fontSize: '0.74rem', color: '#dc2626', marginTop: '2px' }}>
+                      Reason: &ldquo;{doc.rejectionReason}&rdquo;
+                    </div>
+                  )}
+                </div>
+
+                {/* Action Buttons */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  {/* Detailed Review Button */}
+                  <button
+                    onClick={() => setSelectedDoctor(doc)}
+                    style={{
+                      padding: '0.45rem 0.85rem',
+                      borderRadius: 8,
+                      border: '1px solid #cbd5e1',
+                      background: '#ffffff',
+                      color: '#0f172a',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                    }}
+                  >
+                    <Eye size={14} color="#0284c7" /> Review Documents
+                  </button>
+
+                  {/* Quick Approve (if under review or rejected) */}
+                  {docStatus !== 'VERIFIED' && (
                     <button
-                      onClick={() => handleViewDocument(selectedRequest.document.id)}
+                      onClick={() => handleApproveDoctor(doc.id)}
+                      disabled={!canApprove || actionLoading}
+                      title={!canApprove ? 'Cannot approve: Mandatory Registration Cert and Medical Degree required.' : 'Approve doctor'}
                       style={{
                         padding: '0.45rem 0.85rem',
-                        borderRadius: 6,
-                        border: '1px solid #bae6fd',
-                        background: '#f0f9ff',
-                        color: '#0284c7',
+                        borderRadius: 8,
+                        border: 'none',
+                        background: !canApprove ? '#cbd5e1' : '#16a34a',
+                        color: '#ffffff',
+                        fontSize: '0.78rem',
+                        fontWeight: 700,
+                        cursor: !canApprove || actionLoading ? 'not-allowed' : 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                      }}
+                    >
+                      <Check size={14} /> Approve Doctor
+                    </button>
+                  )}
+
+                  {/* Reject (if under review or verified) */}
+                  {docStatus !== 'REJECTED' && docStatus !== 'SUSPENDED' && (
+                    <button
+                      onClick={() => {
+                        setSelectedDoctor(doc);
+                        setRejectModalOpen(true);
+                      }}
+                      style={{
+                        padding: '0.45rem 0.85rem',
+                        borderRadius: 8,
+                        border: '1px solid #fecdd3',
+                        background: '#ffffff',
+                        color: '#be123c',
                         fontSize: '0.78rem',
                         fontWeight: 700,
                         cursor: 'pointer',
@@ -750,127 +649,309 @@ export const VerificationCenterPage: React.FC = () => {
                         gap: '0.35rem',
                       }}
                     >
-                      <ExternalLink size={14} />
-                      <span>View Secure Document File</span>
+                      <X size={14} /> Reject
                     </button>
-                  </div>
-                </div>
-              </div>
+                  )}
 
-              {/* AI Analysis */}
-              <div>
-                <h4 style={{ fontSize: '0.78rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <Search size={15} color="#0284c7" /> AI Pre-check Analysis
-                </h4>
-                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 12, padding: '0.85rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.82rem', color: '#64748b' }}>AI Recommendation</span>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>{selectedRequest.aiDecision || 'Manual Review Required'}</span>
-                  </div>
-                  {selectedRequest.aiConfidence && selectedRequest.aiConfidence > 0 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '0.82rem', color: '#64748b' }}>Confidence Score</span>
-                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>{selectedRequest.aiConfidence.toFixed(0)}%</span>
-                    </div>
+                  {/* Suspend (if verified) */}
+                  {docStatus === 'VERIFIED' && (
+                    <button
+                      onClick={() => {
+                        setSelectedDoctor(doc);
+                        setSuspendModalOpen(true);
+                      }}
+                      style={{
+                        padding: '0.45rem 0.85rem',
+                        borderRadius: 8,
+                        border: '1px solid #475569',
+                        background: '#1e293b',
+                        color: '#fbbf24',
+                        fontSize: '0.78rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                      }}
+                    >
+                      <Ban size={14} /> Suspend
+                    </button>
+                  )}
+
+                  {/* Reactivate (if suspended) */}
+                  {docStatus === 'SUSPENDED' && (
+                    <button
+                      onClick={() => handleReactivateDoctor(doc.id)}
+                      style={{
+                        padding: '0.45rem 0.85rem',
+                        borderRadius: 8,
+                        border: 'none',
+                        background: '#0284c7',
+                        color: '#ffffff',
+                        fontSize: '0.78rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                      }}
+                    >
+                      <UserCheck size={14} /> Reactivate
+                    </button>
                   )}
                 </div>
               </div>
+            );
+          })}
+        </div>
+      )}
 
-              {/* Current Status */}
-              <div>
-                <h4 style={{ fontSize: '0.78rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 0.5rem 0' }}>Current Verification Status</h4>
-                <div>{getStatusBadge(selectedRequest.document.verificationStatus)}</div>
+      {/* ========================================================================= */}
+      {/* DOCTOR CREDENTIAL REVIEW DRAWER / MODAL */}
+      {/* ========================================================================= */}
+      {selectedDoctor && !rejectModalOpen && !suspendModalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 110,
+            background: 'rgba(15, 23, 42, 0.6)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+          }}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: 20,
+              width: '100%',
+              maxWidth: 680,
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              boxShadow: '0 25px 50px rgba(15, 23, 42, 0.25)',
+              border: '1px solid #e2e8f0',
+            }}
+          >
+            {/* Modal Header */}
+            <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Stethoscope size={20} color="#0284c7" />
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                  Doctor Verification &bull; {selectedDoctor.user?.name}
+                </h3>
               </div>
+              <button
+                onClick={() => setSelectedDoctor(null)}
+                style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: 4 }}
+              >
+                <X size={20} />
+              </button>
+            </div>
 
-              {/* Admin Actions */}
-              <div>
-                <h4 style={{ fontSize: '0.78rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 0.5rem 0' }}>Admin Decision</h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#475569', marginBottom: '0.25rem' }}>
-                      Reason / Notes (Required if rejecting or requesting info)
-                    </label>
-                    <textarea
-                      value={reviewReason}
-                      onChange={(e) => setReviewReason(e.target.value)}
-                      placeholder="Enter review feedback or reason for decision..."
-                      rows={3}
-                      style={{ width: '100%', padding: '0.55rem 0.75rem', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: '0.82rem', outline: 'none', resize: 'none' }}
-                    />
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '0.75rem' }}>
-                    <button
-                      onClick={() => handleReview('APPROVED')}
-                      disabled={reviewing}
-                      style={{
-                        flex: 1,
-                        padding: '0.6rem 1rem',
-                        borderRadius: 8,
-                        border: 'none',
-                        background: '#16a34a',
-                        color: '#ffffff',
-                        fontSize: '0.82rem',
-                        fontWeight: 700,
-                        cursor: reviewing ? 'not-allowed' : 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '0.35rem',
-                      }}
-                    >
-                      {reviewing ? <Loader2 size={15} style={{ animation: 'spin 0.8s linear infinite' }} /> : <CheckCircle2 size={15} />}
-                      <span>Approve</span>
-                    </button>
-
-                    <button
-                      onClick={() => handleReview('REQUEST_INFO')}
-                      disabled={reviewing}
-                      style={{
-                        flex: 1,
-                        padding: '0.6rem 1rem',
-                        borderRadius: 8,
-                        border: '1px solid #cbd5e1',
-                        background: '#ffffff',
-                        color: '#334155',
-                        fontSize: '0.82rem',
-                        fontWeight: 700,
-                        cursor: reviewing ? 'not-allowed' : 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '0.35rem',
-                      }}
-                    >
-                      {reviewing ? <Loader2 size={15} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Info size={15} />}
-                      <span>Request Info</span>
-                    </button>
-
-                    <button
-                      onClick={() => handleReview('REJECTED')}
-                      disabled={reviewing}
-                      style={{
-                        flex: 1,
-                        padding: '0.6rem 1rem',
-                        borderRadius: 8,
-                        border: 'none',
-                        background: '#dc2626',
-                        color: '#ffffff',
-                        fontSize: '0.82rem',
-                        fontWeight: 700,
-                        cursor: reviewing ? 'not-allowed' : 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '0.35rem',
-                      }}
-                    >
-                      {reviewing ? <Loader2 size={15} style={{ animation: 'spin 0.8s linear infinite' }} /> : <XCircle size={15} />}
-                      <span>Reject</span>
-                    </button>
-                  </div>
+            <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              {/* Doctor Bio Details */}
+              <div style={{ background: '#f8fafc', borderRadius: 12, padding: '1rem', border: '1px solid #e2e8f0', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div>
+                  <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Specialty</div>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#0f172a' }}>{selectedDoctor.specialty}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Qualification</div>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#0f172a' }}>{selectedDoctor.qualification}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>License Number</div>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 800, fontFamily: 'monospace', color: '#0f172a' }}>{selectedDoctor.licenseNumber}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Current Status</div>
+                  <div>{getStatusBadge(selectedDoctor.verificationStatus)}</div>
                 </div>
               </div>
+
+              {/* Uploaded Documents List */}
+              <div>
+                <h4 style={{ fontSize: '0.82rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '0.65rem' }}>
+                  Submitted Credentials ({selectedDoctor.doctorDocuments.length})
+                </h4>
+
+                {selectedDoctor.doctorDocuments.length === 0 ? (
+                  <div style={{ padding: '1.5rem', textAlign: 'center', background: '#f8fafc', borderRadius: 10, color: '#64748b', fontSize: '0.82rem' }}>
+                    No credential documents uploaded by this doctor yet.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                    {selectedDoctor.doctorDocuments.map((doc) => (
+                      <div
+                        key={doc.id}
+                        style={{
+                          background: '#ffffff',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: 10,
+                          padding: '0.85rem 1rem',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#0f172a' }}>
+                            {doc.documentType.replace(/_/g, ' ')}
+                          </div>
+                          <div style={{ fontSize: '0.76rem', color: '#64748b', marginTop: '2px' }}>
+                            File: {doc.fileName} &bull; {(doc.fileSize / 1024).toFixed(1)} KB &bull; Uploaded {new Date(doc.uploadedAt).toLocaleDateString()}
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => handleViewDoc(doc.id)}
+                          style={{
+                            padding: '0.4rem 0.8rem',
+                            borderRadius: 6,
+                            background: '#f0f9ff',
+                            border: '1px solid #bae6fd',
+                            color: '#0284c7',
+                            fontSize: '0.78rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.35rem',
+                          }}
+                        >
+                          <ExternalLink size={13} /> View File
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Review Decision Buttons */}
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
+                <button
+                  onClick={() => setSelectedDoctor(null)}
+                  style={{ padding: '0.6rem 1.1rem', borderRadius: 8, border: '1px solid #cbd5e1', background: '#ffffff', color: '#475569', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  Close
+                </button>
+
+                <button
+                  onClick={() => setRejectModalOpen(true)}
+                  style={{ padding: '0.6rem 1.1rem', borderRadius: 8, border: '1px solid #fecdd3', background: '#fff1f2', color: '#be123c', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  Reject Verification
+                </button>
+
+                <button
+                  onClick={() => handleApproveDoctor(selectedDoctor.id)}
+                  disabled={!selectedDoctor.doctorDocuments.some((d) => d.documentType === 'MEDICAL_REGISTRATION_CERTIFICATE') || !selectedDoctor.doctorDocuments.some((d) => d.documentType === 'MEDICAL_DEGREE')}
+                  style={{
+                    padding: '0.6rem 1.25rem',
+                    borderRadius: 8,
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
+                    color: '#ffffff',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                  }}
+                >
+                  <Check size={16} /> Approve &amp; Verify Doctor
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* REJECTION REASON PROMPT MODAL */}
+      {/* ========================================================================= */}
+      {rejectModalOpen && selectedDoctor && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 120, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+          <div style={{ background: '#ffffff', borderRadius: 16, width: '100%', maxWidth: 480, padding: '1.5rem', boxShadow: '0 20px 40px rgba(0, 0, 0, 0.25)' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#991b1b', margin: '0 0 0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <XCircle size={18} /> Reject Doctor Verification
+            </h3>
+            <p style={{ fontSize: '0.82rem', color: '#64748b', margin: '0 0 1rem 0' }}>
+              Specify the explicit reason for rejection. This reason will be displayed directly to Dr. {selectedDoctor.user?.name} so they can correct their documents.
+            </p>
+
+            <textarea
+              rows={4}
+              value={rejectionReasonInput}
+              onChange={(e) => setRejectionReasonInput(e.target.value)}
+              placeholder="e.g. Registration certificate is unclear or expired. Please upload a clear official copy."
+              style={{ width: '100%', padding: '0.75rem', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: '0.85rem', outline: 'none', resize: 'vertical', boxSizing: 'border-box', marginBottom: '1.25rem' }}
+            />
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.6rem' }}>
+              <button
+                onClick={() => {
+                  setRejectModalOpen(false);
+                  setRejectionReasonInput('');
+                }}
+                style={{ padding: '0.5rem 1rem', borderRadius: 8, border: '1px solid #cbd5e1', background: '#ffffff', color: '#475569', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmReject}
+                disabled={actionLoading || !rejectionReasonInput.trim()}
+                style={{ padding: '0.5rem 1.15rem', borderRadius: 8, border: 'none', background: '#dc2626', color: '#ffffff', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer' }}
+              >
+                Confirm Rejection
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* SUSPENSION PROMPT MODAL */}
+      {/* ========================================================================= */}
+      {suspendModalOpen && selectedDoctor && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 120, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+          <div style={{ background: '#ffffff', borderRadius: 16, width: '100%', maxWidth: 480, padding: '1.5rem', boxShadow: '0 20px 40px rgba(0, 0, 0, 0.25)' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#1e293b', margin: '0 0 0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <AlertTriangle size={18} color="#d97706" /> Suspend Doctor Account
+            </h3>
+            <p style={{ fontSize: '0.82rem', color: '#64748b', margin: '0 0 1rem 0' }}>
+              Suspending Dr. {selectedDoctor.user?.name} will prevent patients from booking new appointments. Existing appointments remain intact.
+            </p>
+
+            <textarea
+              rows={3}
+              value={suspensionReasonInput}
+              onChange={(e) => setSuspensionReasonInput(e.target.value)}
+              placeholder="e.g. Practitioner license verification audit pending."
+              style={{ width: '100%', padding: '0.75rem', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: '0.85rem', outline: 'none', resize: 'vertical', boxSizing: 'border-box', marginBottom: '1.25rem' }}
+            />
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.6rem' }}>
+              <button
+                onClick={() => {
+                  setSuspendModalOpen(false);
+                  setSuspensionReasonInput('');
+                }}
+                style={{ padding: '0.5rem 1rem', borderRadius: 8, border: '1px solid #cbd5e1', background: '#ffffff', color: '#475569', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmSuspend}
+                disabled={actionLoading}
+                style={{ padding: '0.5rem 1.15rem', borderRadius: 8, border: 'none', background: '#1e293b', color: '#fbbf24', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer' }}
+              >
+                Suspend Account
+              </button>
             </div>
           </div>
         </div>

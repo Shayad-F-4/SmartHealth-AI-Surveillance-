@@ -22,6 +22,7 @@ model User {
   phone        String?
   avatarUrl    String?
   bannerUrl    String?
+  emailVerified Boolean      @default(true)
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 
@@ -48,6 +49,13 @@ model Patient {
   bloodGroup            String          // A+, B+, AB+, O+, etc.
   address               String
   district              String          // e.g. Riverside District
+  locality              String?
+  subLocality           String?
+  city                  String?
+  state                 String?
+  postalCode            String?
+  country               String?
+  formattedAddress      String?
   lat                   Float
   lng                   Float
   emergencyContactName  String
@@ -83,9 +91,14 @@ model Doctor {
   experienceYears Int             @default(5)
   hospitalId      String?
   hospital        Hospital?       @relation(fields: [hospitalId], references: [id])
-  verificationStatus VerificationStatus @default(UNVERIFIED)
+  verificationStatus VerificationStatus @default(PENDING_DOCUMENTS)
   verifiedDocumentType  String?    // The credential type that verified this doctor
   verifiedAt      DateTime?
+  verifiedBy      String?          // Admin name / ID who approved verification
+  rejectionReason String?          // Rejection explanation provided by Admin
+  reviewedAt      DateTime?        // Timestamp of review
+  reviewedBy      String?          // Reviewer Admin name / ID
+  isActive        Boolean          @default(true) // Eligibility flag for patient appointment booking
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
@@ -94,10 +107,12 @@ model Doctor {
   referralsMade   Referral[]
   appointments    Appointment[]
   doctorSlots     DoctorSlot[]
+  doctorDocuments DoctorDocument[]
 
   @@index([licenseNumber])
   @@index([specialty])
   @@index([verificationStatus])
+  @@index([isActive])
 }
 
 model Hospital {
@@ -432,6 +447,9 @@ enum VerificationStatus {
   REVIEW_REQUIRED
   REJECTED
   EXPIRED
+  PENDING_DOCUMENTS
+  UNDER_REVIEW
+  SUSPENDED
 }
 
 enum ReviewDecision {
@@ -599,5 +617,27 @@ model DoctorSlot {
 
   @@index([doctorId])
 }
+
+model DoctorDocument {
+  id              String    @id @default(uuid())
+  doctorId        String
+  doctor          Doctor    @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  documentType    String    // MEDICAL_REGISTRATION, MEDICAL_DEGREE, SPECIALIZATION, ADDITIONAL_CERTIFICATE, IDENTITY_SUPPORTING
+  fileReference   String    // storage key
+  fileName        String
+  fileSize        Int
+  mimeType        String
+  status          String    @default("UNDER_REVIEW") // UPLOADED, UNDER_REVIEW, APPROVED, REJECTED, REUPLOAD_REQUIRED
+  isRequired      Boolean   @default(false)
+  uploadedAt      DateTime  @default(now())
+  reviewedAt      DateTime?
+  reviewedBy      String?
+  rejectionReason String?
+
+  @@index([doctorId])
+  @@index([documentType])
+  @@index([status])
+}
+
 
 

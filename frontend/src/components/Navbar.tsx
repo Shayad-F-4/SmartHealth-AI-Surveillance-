@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Bell, ShieldAlert, LogOut, User, CheckCheck, Search, MapPin, CloudSun, ChevronDown, CreditCard, ShieldCheck } from 'lucide-react';
+import { Bell, ShieldAlert, LogOut, User, CheckCheck, Search, MapPin, CloudSun, ChevronDown, CreditCard, ShieldCheck, RefreshCw, X, Check, AlertCircle } from 'lucide-react';
 import api from '../services/api';
+import { getCurrentPosition, reverseGeocode, formatHeaderLocation } from '../services/locationService';
+import { useLocation } from '../context/LocationContext';
 
 interface NotificationItem {
   id: string;
@@ -21,57 +23,47 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ onNavigate, onToggleMobileSidebar }) => {
   const { user, logout, unreadNotifications, fetchNotificationsCount } = useAuth();
+  const { locationDetails, loading: locationLoading, error: locationError, refreshLocation } = useLocation();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
-  // Real Geolocation and Live Weather state
+  // Live Weather state
   const [weather, setWeather] = useState<{ temp: number; condition: string } | null>(null);
-  const [currentLocation, setCurrentLocation] = useState<string | null>(user?.patient?.district || null);
+  const [showLocationCard, setShowLocationCard] = useState(false);
+  const [refreshingLocation, setRefreshingLocation] = useState(false);
+  const [refreshStep, setRefreshStep] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-          try {
-            const { latitude, longitude } = pos.coords;
-            // Fetch human-readable city/district name via reverse geocoding
-            const geoRes = await fetch(
-              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=14`
-            );
-            const geoData = await geoRes.json();
-            const areaName =
-              geoData?.address?.city ||
-              geoData?.address?.town ||
-              geoData?.address?.village ||
-              geoData?.address?.suburb ||
-              geoData?.address?.county ||
-              user?.patient?.district ||
-              'Kopargaon';
-
-            setCurrentLocation(`${areaName} (${latitude.toFixed(2)}°, ${longitude.toFixed(2)}°)`);
-
-            const res = await fetch(
-              `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`
-            );
-            const data = await res.json();
-            if (data?.current_weather) {
-              setWeather({
-                temp: Math.round(data.current_weather.temperature),
-                condition: data.current_weather.weathercode <= 3 ? 'Clear / Fair' : 'Overcast / Cloud',
-              });
-            }
-          } catch {
-            setCurrentLocation(user?.patient?.district || 'Kopargaon');
+    if (locationDetails?.latitude && locationDetails?.longitude) {
+      fetch(
+        `https://api.open-meteo.com/v1/forecast?latitude=${locationDetails.latitude}&longitude=${locationDetails.longitude}&current_weather=true`
+      )
+        .then((res) => res.json())
+        .then((data) => {
+          if (data?.current_weather) {
+            setWeather({
+              temp: Math.round(data.current_weather.temperature),
+              condition: data.current_weather.weathercode <= 3 ? 'Clear / Fair' : 'Overcast / Cloud',
+            });
           }
-        },
-        () => {
-          setCurrentLocation(user?.patient?.district || 'Kopargaon');
-        }
-      );
+        })
+        .catch(() => {});
     }
-  }, [user]);
+  }, [locationDetails]);
+  const handleRefreshLocation = async () => {
+    setRefreshingLocation(true);
+    setRefreshStep('Getting current location...');
+    await new Promise(r => setTimeout(r, 200));
+    setRefreshStep('Finding locality...');
+    await refreshLocation();
+    setRefreshStep('✓ Location updated');
+    setTimeout(() => {
+      setRefreshStep(null);
+      setRefreshingLocation(false);
+    }, 1200);
+  };
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -196,23 +188,121 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, onToggleMobileSideba
 
       {/* Right Section - Location, Weather, Notifications, User */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', position: 'relative' }}>
-        {/* Location Display */}
-        {currentLocation && (
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '0.5rem',
-            padding: '0.5rem 0.85rem',
-            background: '#fafbfc',
-            borderRadius: 'var(--radius-md)',
-            border: '1px solid var(--border-light)',
-          }}>
-            <MapPin size={16} color="var(--primary-600)" />
-            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)' }}>
-              {currentLocation}
+        {/* Location Display Button with LocationCard Popup */}
+        <div style={{ position: 'relative' }}>
+          <button
+            onClick={() => setShowLocationCard(!showLocationCard)}
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '0.4rem',
+              padding: '0.45rem 0.75rem',
+              background: '#fafbfc',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--border-light)',
+              cursor: 'pointer',
+              color: 'var(--text-main)',
+              maxWidth: '220px',
+              overflow: 'hidden',
+              whiteSpace: 'nowrap',
+              textOverflow: 'ellipsis',
+            }}
+            title={locationDetails?.displayHeader || 'View / Refresh Location'}
+          >
+            <MapPin size={15} color="var(--primary-600)" style={{ flexShrink: 0 }} />
+            <span style={{ fontSize: '0.82rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {locationDetails?.displayHeader ||
+                user?.doctor?.hospital?.name ||
+                user?.doctor?.hospital?.district ||
+                user?.patient?.locality ||
+                user?.patient?.district ||
+                (locationError ? 'Set Location' : 'Detecting location...')}
             </span>
-          </div>
-        )}
+          </button>
+
+          {/* 📍 LocationCard Modal Panel (Requirement 5) */}
+          {showLocationCard && (
+            <div style={{
+              position: 'absolute',
+              top: 'calc(100% + 8px)',
+              right: 0,
+              width: '280px',
+              background: '#ffffff',
+              borderRadius: 'var(--radius-md)',
+              boxShadow: 'var(--shadow-xl)',
+              border: '1px solid var(--border-light)',
+              padding: '1rem',
+              zIndex: 1000,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-main)' }}>
+                  <MapPin size={16} color="var(--primary-600)" />
+                  <span>Current Location</span>
+                </div>
+                <button
+                  onClick={() => setShowLocationCard(false)}
+                  style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px' }}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {locationDetails ? (
+                <div style={{ marginBottom: '1rem' }}>
+                  <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-main)', lineHeight: 1.25 }}>
+                    {locationDetails.locality || locationDetails.subLocality || locationDetails.city || 'Current Area'}
+                  </div>
+                  {locationDetails.city && locationDetails.city !== locationDetails.locality && (
+                    <div style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-muted)', marginTop: '2px' }}>
+                      {locationDetails.city}
+                    </div>
+                  )}
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-light)', marginTop: '2px' }}>
+                    {locationDetails.state || locationDetails.district || 'India'}
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.65rem', fontSize: '0.78rem', color: '#059669', fontWeight: 600 }}>
+                    <Check size={14} />
+                    <span>{locationDetails.isLive ? '✓ Live location detected' : '📌 Stored profile location'}</span>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+                  {locationError || 'No verified location available yet.'}
+                </div>
+              )}
+
+              {refreshStep && (
+                <div style={{ fontSize: '0.78rem', color: 'var(--primary-600)', fontWeight: 600, marginBottom: '0.6rem' }}>
+                  {refreshStep}
+                </div>
+              )}
+
+              <button
+                onClick={handleRefreshLocation}
+                disabled={refreshingLocation}
+                style={{
+                  width: '100%',
+                  padding: '0.55rem',
+                  background: 'var(--primary-50)',
+                  border: '1px solid var(--primary-200)',
+                  borderRadius: 'var(--radius-sm)',
+                  color: 'var(--primary-700)',
+                  fontWeight: 700,
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.4rem',
+                }}
+              >
+                <RefreshCw size={14} className={refreshingLocation ? 'spin' : ''} />
+                <span>{refreshingLocation ? 'Updating...' : '↻ Refresh Location'}</span>
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Live Weather Widget */}
         {weather ? (

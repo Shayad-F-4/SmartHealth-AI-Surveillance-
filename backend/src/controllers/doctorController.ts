@@ -52,6 +52,12 @@ export async function getDoctorDashboard(req: AuthRequest, res: Response) {
         specialty: doctor.specialty,
         licenseNumber: doctor.licenseNumber,
         hospital: doctor.hospital,
+        verificationStatus: doctor.verificationStatus,
+        isActive: doctor.isActive,
+        verifiedBy: doctor.verifiedBy,
+        verifiedAt: doctor.verifiedAt,
+        rejectionReason: doctor.rejectionReason,
+        reviewedAt: doctor.reviewedAt,
       },
       metrics: {
         todayVisitsCount,

@@ -43,21 +43,27 @@ export const LeafletDiseaseMap: React.FC = () => {
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
-    if (!mapInstanceRef.current) {
-      const map = L.map(mapContainerRef.current).setView([19.8917, 74.4789], 12);
-
-      // OpenStreetMap Tile Layer
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors | Smart Health Surveillance (Kopargaon-Shirdi Zone)',
-        maxZoom: 18,
-      }).addTo(map);
-
-      layersGroupRef.current = L.layerGroup().addTo(map);
-      mapInstanceRef.current = map;
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.remove();
+      mapInstanceRef.current = null;
     }
 
+    const map = L.map(mapContainerRef.current).setView([19.8917, 74.4789], 12);
+
+    // OpenStreetMap Tile Layer
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors | Smart Health Surveillance (Kopargaon-Shirdi Zone)',
+      maxZoom: 18,
+    }).addTo(map);
+
+    layersGroupRef.current = L.layerGroup().addTo(map);
+    mapInstanceRef.current = map;
+
     return () => {
-      // Keep map alive during tab transitions
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
     };
   }, []);
 

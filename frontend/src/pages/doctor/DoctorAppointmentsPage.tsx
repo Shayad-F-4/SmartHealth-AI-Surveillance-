@@ -3,9 +3,7 @@ import {
   Calendar as CalendarIcon, Clock, CheckCircle, XCircle, AlertCircle, 
   User, Check, X, Video, RefreshCw, Filter, MessageSquare
 } from 'lucide-react';
-import axios from 'axios';
-
-const API_BASE_URL = 'http://localhost:5000/api';
+import api from '../../services/api';
 
 interface Appointment {
   id: string;
@@ -16,16 +14,23 @@ interface Appointment {
   reason: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'COMPLETED';
   notes?: string;
+  doctorNotes?: string;
   meetingLink?: string;
   patient?: {
     id: string;
-    fullName: string;
-    email: string;
+    fullName?: string;
+    email?: string;
     phone?: string;
     gender?: string;
     age?: number;
     bloodGroup?: string;
     avatarUrl?: string;
+    user?: {
+      name?: string;
+      email?: string;
+      phone?: string;
+      avatarUrl?: string;
+    };
   };
 }
 
@@ -42,17 +47,12 @@ export const DoctorAppointmentsPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  const token = localStorage.getItem('token');
-
   const fetchAppointments = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE_URL}/appointments/doctor/requests`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.data.success) {
-        setAppointments(res.data.appointments);
-      }
+      const res = await api.get('/appointments/doctor/requests');
+      const list = res.data.appointments || res.data.all || [];
+      setAppointments(list);
     } catch (err: any) {
       console.error('Failed to fetch doctor appointments:', err);
     } finally {
@@ -67,7 +67,7 @@ export const DoctorAppointmentsPage: React.FC = () => {
   const handleOpenActionModal = (app: Appointment, type: 'APPROVE' | 'REJECT' | 'COMPLETE') => {
     setSelectedAppointment(app);
     setActionType(type);
-    setNotes(app.notes || '');
+    setNotes(app.notes || app.doctorNotes || '');
     setMeetingLink(app.meetingLink || 'https://meet.google.com/' + Math.random().toString(36).substring(7));
     setErrorMsg('');
   };
@@ -81,23 +81,17 @@ export const DoctorAppointmentsPage: React.FC = () => {
 
     setSubmitting(true);
     try {
-      const res = await axios.patch(
-        `${API_BASE_URL}/appointments/${selectedAppointment.id}/status`,
-        {
-          status: targetStatus,
-          notes,
-          meetingLink: actionType === 'APPROVE' ? meetingLink : undefined
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await api.patch(`/appointments/${selectedAppointment.id}/status`, {
+        status: targetStatus,
+        doctorNotes: notes,
+        meetingLink: actionType === 'APPROVE' ? meetingLink : undefined,
+      });
 
-      if (res.data.success) {
-        setSelectedAppointment(null);
-        setActionType(null);
-        fetchAppointments();
-      }
+      setSelectedAppointment(null);
+      setActionType(null);
+      await fetchAppointments();
     } catch (err: any) {
-      setErrorMsg(err.response?.data?.message || 'Failed to update appointment status');
+      setErrorMsg(err.response?.data?.error || err.response?.data?.message || 'Failed to update appointment status');
     } finally {
       setSubmitting(false);
     }
@@ -198,16 +192,16 @@ export const DoctorAppointmentsPage: React.FC = () => {
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', gap: '0.75rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    {app.patient?.avatarUrl ? (
-                      <img src={app.patient.avatarUrl} alt="" style={{ width: '44px', height: '44px', borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--border-light)' }} />
+                    {app.patient?.avatarUrl || app.patient?.user?.avatarUrl ? (
+                      <img src={app.patient?.avatarUrl || app.patient?.user?.avatarUrl} alt="" style={{ width: '44px', height: '44px', borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--border-light)' }} />
                     ) : (
                       <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'var(--primary-50)', color: 'var(--primary-700)', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>
-                        {app.patient?.fullName?.charAt(0) || 'P'}
+                        {(app.patient?.fullName || app.patient?.user?.name || 'P').charAt(0)}
                       </div>
                     )}
                     <div>
-                      <h3 style={{ fontSize: '0.98rem', fontWeight: 700, color: 'var(--text-main)' }}>{app.patient?.fullName || 'Patient'}</h3>
-                      <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{app.patient?.email}</p>
+                      <h3 style={{ fontSize: '0.98rem', fontWeight: 700, color: 'var(--text-main)' }}>{app.patient?.fullName || app.patient?.user?.name || 'Patient'}</h3>
+                      <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{app.patient?.email || app.patient?.user?.email}</p>
                     </div>
                   </div>
                   {getStatusBadge(app.status)}
@@ -221,7 +215,7 @@ export const DoctorAppointmentsPage: React.FC = () => {
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Clock size={14} style={{ color: 'var(--primary-600)' }} /> Slot</span>
-                    <strong style={{ color: 'var(--text-main)' }}>{app.timeSlot}</strong>
+                    <strong style={{ color: 'var(--text-main)' }}>{app.timeSlot || (app as any).startTime}</strong>
                   </div>
                 </div>
 
@@ -233,9 +227,9 @@ export const DoctorAppointmentsPage: React.FC = () => {
                   </p>
                 </div>
 
-                {app.notes && (
+                {(app.notes || app.doctorNotes) && (
                   <div style={{ fontSize: '0.8rem', background: 'var(--color-warning-bg)', border: '1px solid var(--color-warning-border)', color: '#92400e', padding: '0.6rem', borderRadius: 'var(--radius-sm)', marginBottom: '0.85rem' }}>
-                    <strong>Doctor Note:</strong> {app.notes}
+                    <strong>Doctor Note:</strong> {app.notes || app.doctorNotes}
                   </div>
                 )}
 

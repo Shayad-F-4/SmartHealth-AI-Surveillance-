@@ -125,8 +125,24 @@ export const DoctorProfessionalCard: React.FC<DoctorProfessionalCardProps> = ({ 
           <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             Verification Status
           </div>
-          <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#16a34a', marginTop: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-            <ShieldCheck size={16} /> Verified Practitioner
+          <div style={{ marginTop: '0.25rem' }}>
+            {(doctor?.verificationStatus || 'PENDING_DOCUMENTS') === 'VERIFIED' ? (
+              <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#047857', background: '#ecfdf5', border: '1px solid #a7f3d0', padding: '0.2rem 0.6rem', borderRadius: 999, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                ✓ Verified Doctor
+              </span>
+            ) : doctor?.verificationStatus === 'REJECTED' ? (
+              <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#b91c1c', background: '#fef2f2', border: '1px solid #fecaca', padding: '0.2rem 0.6rem', borderRadius: 999, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                ✕ Verification Rejected
+              </span>
+            ) : doctor?.verificationStatus === 'SUSPENDED' ? (
+              <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#fbbf24', background: '#1e293b', border: '1px solid #475569', padding: '0.2rem 0.6rem', borderRadius: 999, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                ⚠ Verification Suspended
+              </span>
+            ) : (
+              <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#b45309', background: '#fffbeb', border: '1px solid #fde68a', padding: '0.2rem 0.6rem', borderRadius: 999, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                ◷ Verification Pending
+              </span>
+            )}
           </div>
         </div>
       </div>
