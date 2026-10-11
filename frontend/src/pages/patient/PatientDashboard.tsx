@@ -394,7 +394,7 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({ onNavigate }
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', maxWidth: 1140, margin: '0 auto', paddingBottom: '3rem' }}>
         <div style={{ height: 86, background: '#ffffff', borderRadius: 16, border: '1px solid #e2e8f0', padding: '1.25rem' }} />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '1rem' }}>
           {[1, 2, 3, 4].map((i) => (
             <div key={i} style={{ height: 110, background: '#ffffff', borderRadius: 16, border: '1px solid #e2e8f0' }} />
           ))}
@@ -533,7 +533,7 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({ onNavigate }
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
           gap: '1rem',
         }}
       >
@@ -1406,7 +1406,7 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({ onNavigate }
           </span>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '1.25rem' }}>
           {/* LEFT: AI RISK ASSESSMENT */}
           <div
             style={{

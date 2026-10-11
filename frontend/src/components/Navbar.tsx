@@ -156,7 +156,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, onToggleMobileSideba
           </button>
         )}
 
-        <form onSubmit={handleSearchSubmit} className="hidden sm:block" style={{ position: 'relative', width: '100%', maxWidth: '380px' }}>
+        <form onSubmit={handleSearchSubmit} className="navbar-search-form">
           <Search 
             size={16} 
             style={{ 
@@ -187,11 +187,12 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, onToggleMobileSideba
       </div>
 
       {/* Right Section - Location, Weather, Notifications, User */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', position: 'relative' }}>
+      <div className="navbar-right-section" style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', position: 'relative' }}>
         {/* Location Display Button with LocationCard Popup */}
         <div style={{ position: 'relative' }}>
           <button
             onClick={() => setShowLocationCard(!showLocationCard)}
+            className="navbar-location-btn"
             style={{ 
               display: 'flex', 
               alignItems: 'center', 
@@ -210,7 +211,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, onToggleMobileSideba
             title={locationDetails?.displayHeader || 'View / Refresh Location'}
           >
             <MapPin size={15} color="var(--primary-600)" style={{ flexShrink: 0 }} />
-            <span style={{ fontSize: '0.82rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <span className="navbar-location-text" style={{ fontSize: '0.82rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {locationDetails?.displayHeader ||
                 user?.doctor?.hospital?.name ||
                 user?.doctor?.hospital?.district ||
@@ -306,15 +307,18 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, onToggleMobileSideba
 
         {/* Live Weather Widget */}
         {weather ? (
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '0.5rem',
-            padding: '0.5rem 0.85rem',
-            background: '#fffbeb',
-            borderRadius: 'var(--radius-md)',
-            border: '1px solid #fde68a',
-          }}>
+          <div 
+            className="navbar-weather-badge"
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '0.5rem',
+              padding: '0.5rem 0.85rem',
+              background: '#fffbeb',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid #fde68a',
+            }}
+          >
             <CloudSun size={18} color="#f59e0b" />
             <div>
               <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#b45309', lineHeight: 1 }}>

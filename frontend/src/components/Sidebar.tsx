@@ -84,7 +84,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, mobil
             ================================================================= */}
         {role === 'PATIENT' && (
           <>
-            <div style={{ padding: '0.4rem 0.75rem', fontSize: '0.7rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            <div className="sidebar-section-header">
               Patient Portal
             </div>
 
@@ -124,29 +124,25 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, mobil
               <UserCheck size={18} /> <span>Profile &amp; Settings</span>
             </div>
 
-            {/* Smart Health ID - Compact Accessible Profile Badge */}
+            {/* Smart Health ID - Adaptive Profile Badge */}
             {user.patient?.healthId && (
               <div 
+                className="sidebar-health-id-card"
                 onClick={() => onSelectTab('card')}
-                style={{
-                  margin: '1.25rem 0.5rem 0.5rem',
-                  padding: '0.65rem 0.75rem',
-                  background: currentTab === 'card' ? '#e0f2fe' : '#f8fafc',
-                  border: `1px solid ${currentTab === 'card' ? '#0284c7' : '#e2e8f0'}`,
-                  borderRadius: 10,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  transition: 'all 0.15s ease',
-                }}
-                title="View Smart Health Card"
+                data-label={`Smart Health ID: ${user.patient.healthId}`}
+                title={collapsed ? `Smart Health ID: ${user.patient.healthId}` : 'View Smart Health Card'}
               >
-                <div>
-                  <div style={{ fontSize: '0.68rem', color: '#0369a1', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Smart Health ID</div>
-                  <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0f172a', fontFamily: 'monospace' }}>{user.patient.healthId}</div>
-                </div>
-                <CreditCard size={17} color="#0284c7" />
+                {!collapsed ? (
+                  <>
+                    <div className="sidebar-health-id-info">
+                      <div className="sidebar-health-id-label">Smart Health ID</div>
+                      <div className="sidebar-health-id-code">{user.patient.healthId}</div>
+                    </div>
+                    <CreditCard size={17} color="#0284c7" />
+                  </>
+                ) : (
+                  <CreditCard size={19} color="#0284c7" />
+                )}
               </div>
             )}
           </>
@@ -157,32 +153,32 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, mobil
             ================================================================= */}
         {role === 'DOCTOR' && (
           <>
-            <div style={{ padding: '0.5rem 0.75rem', fontSize: '0.72rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            <div className="sidebar-section-header">
               Clinical Workflow
             </div>
 
-            <div className={`nav-item ${currentTab === 'doctor-dashboard' ? 'active' : ''}`} onClick={() => onSelectTab('doctor-dashboard')}>
-              <Activity size={18} /> Dashboard
+            <div className={`nav-item ${currentTab === 'doctor-dashboard' ? 'active' : ''}`} data-label="Dashboard" onClick={() => onSelectTab('doctor-dashboard')}>
+              <Activity size={18} /> <span>Dashboard</span>
             </div>
 
-            <div className={`nav-item ${currentTab === 'doctor-appointments' ? 'active' : ''}`} onClick={() => onSelectTab('doctor-appointments')}>
-              <Calendar size={18} /> Appointments &amp; Requests
+            <div className={`nav-item ${currentTab === 'doctor-appointments' ? 'active' : ''}`} data-label="Appointments & Requests" onClick={() => onSelectTab('doctor-appointments')}>
+              <Calendar size={18} /> <span>Appointments &amp; Requests</span>
             </div>
 
-            <div className={`nav-item ${currentTab === 'patients' || currentTab === 'patient-search' || currentTab === 'add-visit' ? 'active' : ''}`} onClick={() => onSelectTab('patients')}>
-              <Users size={18} /> Patients
+            <div className={`nav-item ${currentTab === 'patients' || currentTab === 'patient-search' || currentTab === 'add-visit' ? 'active' : ''}`} data-label="Patients" onClick={() => onSelectTab('patients')}>
+              <Users size={18} /> <span>Patients</span>
             </div>
 
-            <div className={`nav-item ${currentTab === 'doctor-referrals' ? 'active' : ''}`} onClick={() => onSelectTab('doctor-referrals')}>
-              <ShieldCheck size={18} /> Referrals
+            <div className={`nav-item ${currentTab === 'doctor-referrals' ? 'active' : ''}`} data-label="Referrals" onClick={() => onSelectTab('doctor-referrals')}>
+              <ShieldCheck size={18} /> <span>Referrals</span>
             </div>
 
-            <div className={`nav-item ${currentTab === 'surveillance-map' ? 'active' : ''}`} onClick={() => onSelectTab('surveillance-map')}>
-              <MapPin size={18} /> Disease Map
+            <div className={`nav-item ${currentTab === 'surveillance-map' ? 'active' : ''}`} data-label="Disease Map" onClick={() => onSelectTab('surveillance-map')}>
+              <MapPin size={18} /> <span>Disease Map</span>
             </div>
 
-            <div className={`nav-item ${currentTab === 'profile' ? 'active' : ''}`} onClick={() => onSelectTab('profile')}>
-              <UserCheck size={18} /> Profile & Settings
+            <div className={`nav-item ${currentTab === 'profile' ? 'active' : ''}`} data-label="Profile & Settings" onClick={() => onSelectTab('profile')}>
+              <UserCheck size={18} /> <span>Profile &amp; Settings</span>
             </div>
           </>
         )}
@@ -192,103 +188,112 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, mobil
             ================================================================= */}
         {role === 'ADMIN' && (
           <>
-            <div style={{ padding: '0.5rem 0.75rem', fontSize: '0.72rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            <div className="sidebar-section-header">
               Administration
             </div>
 
-            <div className={`nav-item ${currentTab === 'admin-dashboard' ? 'active' : ''}`} onClick={() => onSelectTab('admin-dashboard')}>
-              <Building2 size={18} /> Dashboard
+            <div className={`nav-item ${currentTab === 'admin-dashboard' ? 'active' : ''}`} data-label="Dashboard" onClick={() => onSelectTab('admin-dashboard')}>
+              <Building2 size={18} /> <span>Dashboard</span>
             </div>
 
-            <div className={`nav-item ${currentTab === 'profile' ? 'active' : ''}`} onClick={() => onSelectTab('profile')}>
-              <UserCheck size={18} /> Profile & Settings
+            <div className={`nav-item ${currentTab === 'profile' ? 'active' : ''}`} data-label="Profile & Settings" onClick={() => onSelectTab('profile')}>
+              <UserCheck size={18} /> <span>Profile &amp; Settings</span>
             </div>
 
             {/* Disease Surveillance Expandable Group */}
             <div
               className={`nav-item ${isSurveillanceActive ? 'active' : ''}`}
+              data-label="Disease Surveillance"
               style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
               onClick={() => {
                 onSelectTab('disease-surveillance');
-                setSurveillanceOpen(true);
+                if (!collapsed) setSurveillanceOpen(true);
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <Compass size={18} /> Disease Surveillance
+                <Compass size={18} /> <span>Disease Surveillance</span>
               </div>
-              <span
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSurveillanceOpen(!surveillanceOpen);
-                }}
-                style={{ cursor: 'pointer', padding: '0.2rem' }}
-              >
-                {surveillanceOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-              </span>
+              {!collapsed && (
+                <span
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSurveillanceOpen(!surveillanceOpen);
+                  }}
+                  style={{ cursor: 'pointer', padding: '0.2rem' }}
+                >
+                  {surveillanceOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                </span>
+              )}
             </div>
 
-            {/* Surveillance Submenu */}
-            {surveillanceOpen && (
+            {/* Surveillance Submenu - Only show when sidebar expanded */}
+            {surveillanceOpen && !collapsed && (
               <div style={{ paddingLeft: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
                 <div
                   className={`nav-item ${currentTab === 'disease-surveillance' || currentTab === 'disease-surveillance-overview' ? 'active' : ''}`}
+                  data-label="Overview"
                   onClick={() => onSelectTab('disease-surveillance-overview')}
                   style={{ fontSize: '0.82rem', padding: '0.45rem 0.75rem' }}
                 >
-                  <BarChart2 size={15} /> Overview
+                  <BarChart2 size={15} /> <span>Overview</span>
                 </div>
                 <div
                   className={`nav-item ${currentTab === 'disease-surveillance-map' || currentTab === 'surveillance-map' ? 'active' : ''}`}
+                  data-label="Disease Map"
                   onClick={() => onSelectTab('disease-surveillance-map')}
                   style={{ fontSize: '0.82rem', padding: '0.45rem 0.75rem' }}
                 >
-                  <MapPin size={15} /> Map
+                  <MapPin size={15} /> <span>Map</span>
                 </div>
                 <div
                   className={`nav-item ${currentTab === 'disease-surveillance-hotspots' || currentTab === 'hotspots' ? 'active' : ''}`}
+                  data-label="Hotspots"
                   onClick={() => onSelectTab('disease-surveillance-hotspots')}
                   style={{ fontSize: '0.82rem', padding: '0.45rem 0.75rem' }}
                 >
-                  <Flame size={15} /> Hotspots
+                  <Flame size={15} /> <span>Hotspots</span>
                 </div>
                 <div
                   className={`nav-item ${currentTab === 'disease-surveillance-forecast' || currentTab === 'forecast' ? 'active' : ''}`}
+                  data-label="Forecast"
                   onClick={() => onSelectTab('disease-surveillance-forecast')}
                   style={{ fontSize: '0.82rem', padding: '0.45rem 0.75rem' }}
                 >
-                  <LineChart size={15} /> Forecast
+                  <LineChart size={15} /> <span>Forecast</span>
                 </div>
                 <div
                   className={`nav-item ${currentTab === 'disease-surveillance-analytics' || currentTab === 'analytics' ? 'active' : ''}`}
+                  data-label="Analytics"
                   onClick={() => onSelectTab('disease-surveillance-analytics')}
                   style={{ fontSize: '0.82rem', padding: '0.45rem 0.75rem' }}
                 >
-                  <TrendingUp size={15} /> Analytics
+                  <TrendingUp size={15} /> <span>Analytics</span>
                 </div>
                 <div
                   className={`nav-item ${currentTab === 'disease-surveillance-insights' || currentTab === 'insights' ? 'active' : ''}`}
+                  data-label="AI Insights"
                   onClick={() => onSelectTab('disease-surveillance-insights')}
                   style={{ fontSize: '0.82rem', padding: '0.45rem 0.75rem' }}
                 >
-                  <Brain size={15} /> AI Insights
+                  <Brain size={15} /> <span>AI Insights</span>
                 </div>
               </div>
             )}
 
-            <div className={`nav-item ${currentTab === 'alerts' ? 'active' : ''}`} onClick={() => onSelectTab('alerts')}>
-              <AlertTriangle size={18} /> Community Alerts
+            <div className={`nav-item ${currentTab === 'alerts' ? 'active' : ''}`} data-label="Community Alerts" onClick={() => onSelectTab('alerts')}>
+              <AlertTriangle size={18} /> <span>Community Alerts</span>
             </div>
 
-            <div className={`nav-item ${currentTab === 'health-camps' ? 'active' : ''}`} onClick={() => onSelectTab('health-camps')}>
-              <Tent size={18} /> Health Camps
+            <div className={`nav-item ${currentTab === 'health-camps' ? 'active' : ''}`} data-label="Health Camps" onClick={() => onSelectTab('health-camps')}>
+              <Tent size={18} /> <span>Health Camps</span>
             </div>
 
-            <div className={`nav-item ${currentTab === 'audit-logs' ? 'active' : ''}`} onClick={() => onSelectTab('audit-logs')}>
-              <History size={18} /> Audit Logs
+            <div className={`nav-item ${currentTab === 'audit-logs' ? 'active' : ''}`} data-label="Audit Logs" onClick={() => onSelectTab('audit-logs')}>
+              <History size={18} /> <span>Audit Logs</span>
             </div>
 
-            <div className={`nav-item ${currentTab === 'verification-center' ? 'active' : ''}`} onClick={() => onSelectTab('verification-center')}>
-              <CheckCircle2 size={18} /> Verification Center
+            <div className={`nav-item ${currentTab === 'verification-center' ? 'active' : ''}`} data-label="Verification Center" onClick={() => onSelectTab('verification-center')}>
+              <CheckCircle2 size={18} /> <span>Verification Center</span>
             </div>
           </>
         )}
