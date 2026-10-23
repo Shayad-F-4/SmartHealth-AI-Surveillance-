@@ -41,8 +41,24 @@ const AlertsPage = lazy(() => import('./pages/admin/AlertsPage').then(m => ({ de
 const HealthCampsPage = lazy(() => import('./pages/admin/HealthCampsPage').then(m => ({ default: m.HealthCampsPage })));
 const AuditLogsPage = lazy(() => import('./pages/admin/AuditLogsPage').then(m => ({ default: m.AuditLogsPage })));
 const VerificationCenterPage = lazy(() => import('./pages/admin/VerificationCenterPage').then(m => ({ default: m.VerificationCenterPage })));
+const AdminHealthCardsPage = lazy(() => import('./pages/admin/AdminHealthCardsPage').then(m => ({ default: m.AdminHealthCardsPage })));
 
 import api from './services/api';
+
+const DoctorVerificationGate: React.FC<{ verificationStatus?: string; onGoProfile: () => void }> = ({ verificationStatus, onGoProfile }) => (
+  <div style={{ maxWidth: 600, margin: '4rem auto', padding: '2.5rem', background: '#fff', borderRadius: 16, border: '1.5px solid #e2e8f0', textAlign: 'center', boxShadow: '0 8px 24px rgba(15,23,42,0.06)' }}>
+    <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', border: '1.5px solid #fdba74' }}>
+      <span style={{ fontSize: 26 }}>🔒</span>
+    </div>
+    <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.75rem' }}>Medical License Verification Required</h2>
+    <p style={{ color: '#64748b', fontSize: '0.9rem', lineHeight: 1.6, marginBottom: '1.5rem' }}>
+      Access to live epidemiological outbreak mapping, hotspot surveillance, and predictive clusters is restricted to verified medical practitioners. Your verification status is currently: <strong style={{ color: '#ea580c' }}>{verificationStatus || 'PENDING_DOCUMENTS'}</strong>.
+    </p>
+    <button onClick={onGoProfile} style={{ padding: '10px 22px', borderRadius: 10, background: '#2563eb', color: '#fff', border: 'none', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer' }}>
+      Complete Verification in Profile
+    </button>
+  </div>
+);
 
 const AppContent: React.FC = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -234,9 +250,12 @@ const AppContent: React.FC = () => {
             <>
               {currentTab === 'dashboard' && <PatientDashboard onNavigate={(t) => setCurrentTab(t)} />}
               {currentTab === 'card' && cardData && <SmartHealthCard cardData={cardData} />}
-              {currentTab === 'records' && <MedicalRecordsPage initialSection="records" onNavigate={(t) => setCurrentTab(t)} />}
-              {currentTab === 'timeline' && <MedicalRecordsPage initialSection="timeline" onNavigate={(t) => setCurrentTab(t)} />}
-              {currentTab === 'episodes' && <MedicalRecordsPage initialSection="records" onNavigate={(t) => setCurrentTab(t)} />}
+              {(currentTab === 'records' || currentTab === 'timeline' || currentTab === 'episodes' || currentTab === 'referrals') && (
+                <MedicalRecordsPage
+                  initialSection={currentTab === 'timeline' ? 'timeline' : currentTab === 'referrals' ? 'referrals' : 'records'}
+                  onNavigate={(t) => setCurrentTab(t)}
+                />
+              )}
               {currentTab === 'health-insights' && (
                 <HealthInsightsPage
                   initialTab="trends"
@@ -302,15 +321,18 @@ const AppContent: React.FC = () => {
           {user?.role === 'DOCTOR' && (
             <>
               {currentTab === 'doctor-dashboard' && <DoctorDashboard onNavigate={(t) => setCurrentTab(t)} />}
-              {(currentTab === 'patients' || currentTab === 'patient-search' || currentTab === 'add-visit') && (
+              {(currentTab === 'patients' || currentTab === 'patient-search' || currentTab === 'add-visit' || currentTab === 'doctor-referrals') && (
                 <DoctorPatientsPage
                   initialPatient={consultationPatient}
-                  initialMode={currentTab === 'add-visit' ? 'consultation' : 'view'}
+                  initialMode={currentTab === 'add-visit' ? 'consultation' : currentTab === 'doctor-referrals' ? 'referrals' : 'view'}
                 />
               )}
-              {currentTab === 'doctor-referrals' && <DoctorReferralsPage />}
               {currentTab === 'doctor-appointments' && <DoctorAppointmentsPage />}
-              {currentTab === 'surveillance-map' && <LeafletDiseaseMap />}
+              {currentTab === 'surveillance-map' && (
+                user?.doctor?.verificationStatus === 'VERIFIED'
+                  ? <LeafletDiseaseMap />
+                  : <DoctorVerificationGate verificationStatus={user?.doctor?.verificationStatus} onGoProfile={() => setCurrentTab('profile')} />
+              )}
             </>
           )}
 
@@ -342,6 +364,7 @@ const AppContent: React.FC = () => {
               )}
 
               {/* Standalone Administrative Modules */}
+              {currentTab === 'admin-health-cards' && <AdminHealthCardsPage />}
               {currentTab === 'alerts' && <AlertsPage />}
               {currentTab === 'health-camps' && <HealthCampsPage />}
               {currentTab === 'audit-logs' && <AuditLogsPage />}

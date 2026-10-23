@@ -19,6 +19,7 @@ import {
   Brain,
   Stethoscope,
   TrendingUp,
+  ShieldCheck,
 } from 'lucide-react';
 import { SmartHealthCard } from '../../components/SmartHealthCard';
 import { MedicalTimelinePage } from '../patient/MedicalTimelinePage';
@@ -27,25 +28,38 @@ import { FamilyTree } from '../../components/FamilyTree';
 import { LabReportsPage } from '../patient/LabReportsPage';
 import { HealthTrendsPage } from '../patient/HealthTrendsPage';
 import { ClinicalDecisionSupportView } from '../../components/ClinicalDecisionSupportView';
+import { DoctorReferralsPage } from './DoctorReferralsPage';
 import api from '../../services/api';
 
 interface DoctorPatientsPageProps {
   initialPatient?: any;
-  initialMode?: 'view' | 'consultation';
+  initialMode?: 'view' | 'consultation' | 'referrals';
 }
 
 export const DoctorPatientsPage: React.FC<DoctorPatientsPageProps> = ({
   initialPatient = null,
   initialMode = 'view',
 }) => {
+  const [viewMode, setViewMode] = useState<'patients' | 'referrals'>(
+    initialMode === 'referrals' ? 'referrals' : 'patients'
+  );
   const [query, setQuery] = useState('SHC-2026-000001'); // Pre-fill default demo ID
   const [patients, setPatients] = useState<any[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<any>(initialPatient);
   const [familyData, setFamilyData] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<'timeline' | 'episodes' | 'trends' | 'family' | 'labs' | 'card' | 'cds'>('timeline');
+  const [activeTab, setActiveTab] = useState<'timeline' | 'episodes' | 'trends' | 'family' | 'labs' | 'card' | 'cds' | 'referrals'>('timeline');
   const [loading, setLoading] = useState(false);
   const [showQrSimulator, setShowQrSimulator] = useState(false);
   const [isConsulting, setIsConsulting] = useState(initialMode === 'consultation' && !!initialPatient);
+
+  useEffect(() => {
+    if (initialMode === 'referrals') {
+      setViewMode('referrals');
+    } else if (initialMode === 'consultation') {
+      setViewMode('patients');
+      setIsConsulting(true);
+    }
+  }, [initialMode]);
 
   // ─── Consultation Form State ──────────────────────────────────────────
   const [systolicBp, setSystolicBp] = useState('130');
@@ -250,32 +264,83 @@ export const DoctorPatientsPage: React.FC<DoctorPatientsPageProps> = ({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.75rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h2 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            <Stethoscope size={26} color="var(--primary-600)" /> Unified Patients Workflow
+            {viewMode === 'patients' ? (
+              <>
+                <Stethoscope size={26} color="var(--primary-600)" /> Unified Patients Workflow
+              </>
+            ) : (
+              <>
+                <ShieldCheck size={26} color="var(--primary-600)" /> Specialist Referrals Management
+              </>
+            )}
           </h2>
           <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>
-            Search or scan patient QR, review comprehensive medical history, and record consultations in one seamless workflow.
+            {viewMode === 'patients'
+              ? 'Search or scan patient QR, review comprehensive medical history, and record consultations in one seamless workflow.'
+              : 'Triage incoming & outbound cross-specialty clinical referrals, assign urgency tiers, and record completed resolution notes.'}
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <button
-            onClick={() => setShowQrSimulator(!showQrSimulator)}
-            className="btn btn-outline"
-            style={{ gap: '0.5rem' }}
-          >
-            <QrCode size={17} /> QR Reader Terminal
-          </button>
-          {selectedPatient && !isConsulting && (
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          {/* Top Switcher: Patients vs Referrals */}
+          <div style={{ display: 'inline-flex', padding: '3px', background: 'var(--bg-card, #ffffff)', borderRadius: '10px', border: '1px solid var(--border-color, #e2e8f0)', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
             <button
-              onClick={() => setIsConsulting(true)}
-              className="btn btn-primary"
-              style={{ gap: '0.5rem', boxShadow: '0 4px 12px rgba(2, 132, 199, 0.35)' }}
+              type="button"
+              onClick={() => setViewMode('patients')}
+              className={`btn ${viewMode === 'patients' ? 'btn-primary' : 'btn-outline'}`}
+              style={{
+                padding: '0.45rem 1rem',
+                fontSize: '0.84rem',
+                borderRadius: '7px',
+                border: 'none',
+                gap: '0.4rem',
+              }}
             >
-              <PlusCircle size={18} /> Start Consultation
+              <Stethoscope size={15} /> Patients & Consultation
             </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('referrals')}
+              className={`btn ${viewMode === 'referrals' ? 'btn-primary' : 'btn-outline'}`}
+              style={{
+                padding: '0.45rem 1rem',
+                fontSize: '0.84rem',
+                borderRadius: '7px',
+                border: 'none',
+                gap: '0.4rem',
+              }}
+            >
+              <ShieldCheck size={15} /> Specialist Referrals
+            </button>
+          </div>
+
+          {viewMode === 'patients' && (
+            <>
+              <button
+                onClick={() => setShowQrSimulator(!showQrSimulator)}
+                className="btn btn-outline"
+                style={{ gap: '0.5rem' }}
+              >
+                <QrCode size={17} /> QR Reader Terminal
+              </button>
+              {selectedPatient && !isConsulting && (
+                <button
+                  onClick={() => setIsConsulting(true)}
+                  className="btn btn-primary"
+                  style={{ gap: '0.5rem', boxShadow: '0 4px 12px rgba(2, 132, 199, 0.35)' }}
+                >
+                  <PlusCircle size={18} /> Start Consultation
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>
+
+      {viewMode === 'referrals' ? (
+        <DoctorReferralsPage />
+      ) : (
+        <>
 
       {/* ── Optical QR Reader Terminal Simulator ────────────────────────── */}
       {showQrSimulator && (
@@ -490,6 +555,13 @@ export const DoctorPatientsPage: React.FC<DoctorPatientsPageProps> = ({
                     style={{ padding: '0.4rem 0.85rem', fontSize: '0.82rem' }}
                   >
                     <Brain size={14} /> Clinical Decision Support
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('referrals')}
+                    className={`btn ${activeTab === 'referrals' ? 'btn-primary' : 'btn-outline'}`}
+                    style={{ padding: '0.4rem 0.85rem', fontSize: '0.82rem' }}
+                  >
+                    <ShieldCheck size={14} /> Specialist Referrals ({selectedPatient.referrals?.length || 0})
                   </button>
                 </div>
               )}
@@ -734,6 +806,9 @@ export const DoctorPatientsPage: React.FC<DoctorPatientsPageProps> = ({
                     onLaunchConsultation={() => setIsConsulting(true)}
                   />
                 )}
+                {activeTab === 'referrals' && (
+                  <DoctorReferralsPage selectedPatientId={selectedPatient.id} />
+                )}
               </div>
             )}
           </div>
@@ -745,6 +820,8 @@ export const DoctorPatientsPage: React.FC<DoctorPatientsPageProps> = ({
           </div>
         )}
       </div>
+        </>
+      )}
     </div>
   );
 };

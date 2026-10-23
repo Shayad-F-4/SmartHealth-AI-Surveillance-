@@ -19,24 +19,24 @@ export const loginRateLimiter = rateLimit({
 // Rate limiter for registration
 export const registerRateLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 3, // 3 registration attempts per hour
+  max: 500, // Generous limit for development & demonstration
   message: { error: 'Too many registration attempts. Please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req: Request) => {
-    return process.env.NODE_ENV === 'test';
+    return process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'development';
   },
 });
 
 // Rate limiter for password reset
 export const passwordResetRateLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 3, // 3 password reset attempts per hour
+  max: 500, // Generous limit for development & demonstration
   message: { error: 'Too many password reset attempts. Please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req: Request) => {
-    return process.env.NODE_ENV === 'test';
+    return process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'development';
   },
 });
 
@@ -55,8 +55,8 @@ export function checkLockout(email: string): { locked: boolean; remainingTime?: 
     return { locked: false };
   }
 
-  // Lock if more than 5 failed attempts
-  if (record.count >= 5) {
+  // Lock if more than 50 failed attempts (prevent false lockout in demo)
+  if (record.count >= 50) {
     const remainingTime = Math.ceil((record.resetTime - now) / 1000 / 60); // minutes
     return { locked: true, remainingTime };
   }

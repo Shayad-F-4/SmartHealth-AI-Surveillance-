@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Camera, CheckCircle2, CreditCard, Edit3, ShieldCheck, User, Clock, AlertCircle, X, XCircle, AlertTriangle, Crop } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
@@ -48,11 +48,20 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onEditClick,
   const verifiedDocumentType = user?.patient?.verifiedDocumentType || user?.doctor?.verifiedDocumentType;
   const verifiedAt = user?.patient?.verifiedAt || user?.doctor?.verifiedAt;
 
-  const currentBannerUrl = user?.bannerUrl
-    ? user.bannerUrl.startsWith('http')
-      ? user.bannerUrl
-      : `http://localhost:5000${user.bannerUrl}`
-    : null;
+  const [localBannerUrl, setLocalBannerUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user?.bannerUrl) {
+      const url = user.bannerUrl.startsWith('http')
+        ? user.bannerUrl
+        : `http://localhost:5000${user.bannerUrl}`;
+      setLocalBannerUrl(url);
+    }
+  }, [user?.bannerUrl]);
+
+  const effectiveBannerUrl = localBannerUrl || (user?.bannerUrl
+    ? (user.bannerUrl.startsWith('http') ? user.bannerUrl : `http://localhost:5000${user.bannerUrl}`)
+    : null);
 
   // Healthcare-themed background banners or custom uploaded banner
   const defaultBannerGradient = isPatient
@@ -60,10 +69,6 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onEditClick,
     : isDoctor
     ? 'linear-gradient(135deg, #0f172a 0%, #1e40af 50%, #0284c7 100%)'
     : 'linear-gradient(135deg, #0f172a 0%, #4c1d95 50%, #1e1b4b 100%)';
-
-  const bannerBackground = currentBannerUrl
-    ? `url(${currentBannerUrl}) center/cover no-repeat`
-    : defaultBannerGradient;
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -104,9 +109,17 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onEditClick,
       const formData = new FormData();
       formData.append('banner', blob, `banner-${Date.now()}.jpg`);
 
-      await api.post('/auth/banner', formData, {
+      const res = await api.post('/auth/banner', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
+
+      const returnedBanner = res.data?.bannerUrl || res.data?.user?.bannerUrl;
+      if (returnedBanner) {
+        const fullUrl = returnedBanner.startsWith('http')
+          ? returnedBanner
+          : `http://localhost:5000${returnedBanner}`;
+        setLocalBannerUrl(`${fullUrl}?t=${Date.now()}`);
+      }
 
       await refreshUser();
       setNotification({ type: 'success', text: 'Profile header banner cropped and updated successfully!' });
@@ -169,7 +182,11 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onEditClick,
       <div
         style={{
           height: '160px',
-          background: bannerBackground,
+          backgroundColor: '#0f172a',
+          backgroundImage: effectiveBannerUrl ? `url("${effectiveBannerUrl}")` : defaultBannerGradient,
+          backgroundPosition: 'center',
+          backgroundSize: 'cover',
+          backgroundRepeat: 'no-repeat',
           position: 'relative',
           display: 'flex',
           alignItems: 'flex-start',
@@ -186,7 +203,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onEditClick,
           style={{
             position: 'absolute',
             inset: 0,
-            opacity: currentBannerUrl ? 0.05 : 0.12,
+            opacity: effectiveBannerUrl ? 0.05 : 0.12,
             backgroundImage:
               'radial-gradient(#ffffff 1px, transparent 1px), radial-gradient(#ffffff 1px, transparent 1px)',
             backgroundSize: '20px 20px',
@@ -439,7 +456,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onEditClick,
         isOpen={isBannerModalOpen}
         onClose={() => setIsBannerModalOpen(false)}
         onSaveBannerBlob={handleSaveCroppedBanner}
-        currentBannerUrl={currentBannerUrl}
+        currentBannerUrl={effectiveBannerUrl}
         userRole={role}
         userName={name}
       />

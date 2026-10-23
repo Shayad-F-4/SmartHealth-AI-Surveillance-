@@ -192,6 +192,33 @@ export async function createVisit(req: AuthRequest, res: Response) {
       source: 'CLINICAL_VISIT',
     });
 
+    // 7b. Create Specialist Referral if requested
+    if (req.body.referral && req.body.referral.targetSpecialty && req.body.referral.reason) {
+      await prisma.referral.create({
+        data: {
+          patientId,
+          referringDoctorId: doctorUser.id,
+          targetSpecialty: req.body.referral.targetSpecialty,
+          targetDoctorId: req.body.referral.targetDoctorId || null,
+          reason: req.body.referral.reason,
+          priority: req.body.referral.priority || 'ROUTINE',
+          status: 'GENERATED',
+          clinicalNotes: req.body.referral.clinicalNotes || `Cross-specialty referral created during clinical visit for ${disease}.`,
+        },
+      });
+
+      // Send In-App Notification to Patient
+      await prisma.notification.create({
+        data: {
+          userId: patient.userId,
+          title: `Specialist Referral: ${req.body.referral.targetSpecialty}`,
+          message: `Dr. ${req.user!.name} has referred you to a ${req.body.referral.targetSpecialty} specialist for: ${req.body.referral.reason}. Urgency: ${req.body.referral.priority || 'ROUTINE'}.`,
+          type: 'APPOINTMENT',
+          priority: req.body.referral.priority === 'EMERGENCY' ? 'CRITICAL' : 'INFO',
+        },
+      });
+    }
+
     // 8. If anomaly detected or high risk, generate an in-app health alert for patient
     if (anomalyResult.is_anomaly || riskPrediction.risk_level === 'HIGH') {
       await prisma.notification.create({

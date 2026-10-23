@@ -8,6 +8,7 @@ export interface UserProfile {
   role: 'PATIENT' | 'DOCTOR' | 'ADMIN';
   phone?: string;
   avatarUrl?: string;
+  bannerUrl?: string;
   patient?: {
     id: string;
     healthId: string;
@@ -32,6 +33,8 @@ export interface UserProfile {
     id: string;
     licenseNumber: string;
     specialty: string;
+    verificationStatus?: string;
+    verifiedAt?: string;
     hospital?: {
       id: string;
       name: string;

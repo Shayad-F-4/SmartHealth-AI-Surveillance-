@@ -147,7 +147,7 @@ c:\Users\userm\OneDrive\Desktop\MP\
     ├── train.py                   # Script to train and persist scikit-learn models
     ├── requirements.txt           # Python dependencies
     └── models/                    # Serialized joblib artifacts
-        ├── model_a_risk.joblib
+        ├── model_a_risk.joblib 
         ├── model_b_anomaly.joblib
         └── model_d_forecast.joblib
 ```

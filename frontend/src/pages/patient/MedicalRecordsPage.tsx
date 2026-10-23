@@ -24,6 +24,7 @@ import {
   Plus,
 } from 'lucide-react';
 import { MedicalTimelinePage } from './MedicalTimelinePage';
+import { ReferralsPage } from './ReferralsPage';
 import api from '../../services/api';
 
 /* ─── Types ─────────────────────────────────────────────────────────────── */
@@ -725,7 +726,7 @@ function RecordDetailModal({
 /* ─── Main MedicalRecordsPage Component ───────────────────────────────── */
 
 export interface MedicalRecordsPageProps {
-  initialSection?: 'records' | 'timeline';
+  initialSection?: 'records' | 'timeline' | 'referrals';
   initialCategory?: RecordCategory;
   onNavigate?: (tab: string) => void;
 }
@@ -734,7 +735,7 @@ export const MedicalRecordsPage: React.FC<MedicalRecordsPageProps> = ({
   initialSection = 'records',
   initialCategory = 'All Records',
 }) => {
-  const [section, setSection] = useState<'records' | 'timeline'>(initialSection);
+  const [section, setSection] = useState<'records' | 'timeline' | 'referrals'>(initialSection);
   const [activeCategory, setActiveCategory] = useState<RecordCategory>(initialCategory);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -935,10 +936,34 @@ export const MedicalRecordsPage: React.FC<MedicalRecordsPageProps> = ({
             <Clock size={16} color={section === 'timeline' ? '#0284c7' : '#64748b'} />
             Medical Timeline
           </button>
+          <button
+            onClick={() => setSection('referrals')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.45rem',
+              padding: '0.5rem 1.15rem',
+              borderRadius: 9,
+              border: 'none',
+              fontSize: '0.86rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              background: section === 'referrals' ? '#ffffff' : 'transparent',
+              color: section === 'referrals' ? '#0369a1' : '#64748b',
+              boxShadow: section === 'referrals' ? '0 2px 6px rgba(15,23,42,0.08)' : 'none',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <ShieldCheck size={16} color={section === 'referrals' ? '#0284c7' : '#64748b'} />
+            Specialist Referrals
+          </button>
         </div>
 
         {/* ── View: Medical Timeline ──────────────────────────────────── */}
         {section === 'timeline' && <MedicalTimelinePage />}
+
+        {/* ── View: Specialist Referrals ──────────────────────────────── */}
+        {section === 'referrals' && <ReferralsPage />}
 
         {/* ── View: All Records ───────────────────────────────────────── */}
         {section === 'records' && (

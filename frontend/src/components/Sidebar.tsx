@@ -41,7 +41,7 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, mobileOpen, onCloseMobile, collapsed }) => {
   const { user } = useAuth();
-  const [surveillanceOpen, setSurveillanceOpen] = useState(true);
+  const [surveillanceOpen, setSurveillanceOpen] = useState(false);
 
   if (!user) return null;
 
@@ -92,7 +92,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, mobil
               <Activity size={18} /> <span>Overview</span>
             </div>
 
-            <div className={`nav-item ${['records', 'timeline', 'episodes', 'prescriptions', 'labs'].includes(currentTab) ? 'active' : ''}`} data-label="Medical Records" onClick={() => onSelectTab('records')}>
+            <div className={`nav-item ${['records', 'timeline', 'episodes', 'prescriptions', 'labs', 'referrals'].includes(currentTab) ? 'active' : ''}`} data-label="Medical Records" onClick={() => onSelectTab('records')}>
               <FileText size={18} /> <span>Medical Records</span>
             </div>
 
@@ -104,16 +104,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, mobil
               <TrendingUp size={18} /> <span>Health Insights</span>
             </div>
 
-            <div className={`nav-item ${currentTab === 'ai-assistant' ? 'active' : ''}`} data-label="AI Assistant" onClick={() => onSelectTab('ai-assistant')}>
-              <MessageSquare size={18} /> <span>AI Assistant</span>
-            </div>
-
             <div className={`nav-item ${currentTab === 'family' ? 'active' : ''}`} data-label="Family Health" onClick={() => onSelectTab('family')}>
               <GitFork size={18} /> <span>Family Health</span>
-            </div>
-
-            <div className={`nav-item ${currentTab === 'referrals' ? 'active' : ''}`} data-label="Referrals" onClick={() => onSelectTab('referrals')}>
-              <ShieldCheck size={18} /> <span>Referrals</span>
             </div>
 
             <div className={`nav-item ${currentTab === 'surveillance' ? 'active' : ''}`} data-label="Disease Surveillance" onClick={() => onSelectTab('surveillance')}>
@@ -165,12 +157,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, mobil
               <Calendar size={18} /> <span>Appointments &amp; Requests</span>
             </div>
 
-            <div className={`nav-item ${currentTab === 'patients' || currentTab === 'patient-search' || currentTab === 'add-visit' ? 'active' : ''}`} data-label="Patients" onClick={() => onSelectTab('patients')}>
-              <Users size={18} /> <span>Patients</span>
-            </div>
-
-            <div className={`nav-item ${currentTab === 'doctor-referrals' ? 'active' : ''}`} data-label="Referrals" onClick={() => onSelectTab('doctor-referrals')}>
-              <ShieldCheck size={18} /> <span>Referrals</span>
+            <div className={`nav-item ${['patients', 'patient-search', 'add-visit', 'doctor-referrals'].includes(currentTab) ? 'active' : ''}`} data-label="Patients & Clinical Care" onClick={() => onSelectTab('patients')}>
+              <Users size={18} /> <span>Patients &amp; Clinical Care</span>
             </div>
 
             <div className={`nav-item ${currentTab === 'surveillance-map' ? 'active' : ''}`} data-label="Disease Map" onClick={() => onSelectTab('surveillance-map')}>
@@ -194,6 +182,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, mobil
 
             <div className={`nav-item ${currentTab === 'admin-dashboard' ? 'active' : ''}`} data-label="Dashboard" onClick={() => onSelectTab('admin-dashboard')}>
               <Building2 size={18} /> <span>Dashboard</span>
+            </div>
+
+            <div className={`nav-item ${currentTab === 'admin-health-cards' ? 'active' : ''}`} data-label="Smart Health Cards" onClick={() => onSelectTab('admin-health-cards')}>
+              <CreditCard size={18} /> <span>Smart Health Cards</span>
             </div>
 
             <div className={`nav-item ${currentTab === 'profile' ? 'active' : ''}`} data-label="Profile & Settings" onClick={() => onSelectTab('profile')}>

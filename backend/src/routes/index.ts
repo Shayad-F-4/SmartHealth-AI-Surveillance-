@@ -125,8 +125,11 @@ router.get('/prescriptions/patient/:patientId', authenticate, presCtrl.getPatien
 router.get('/family/tree', authenticate, familyCtrl.getFamilyTree);
 router.get('/family/tree/:patientId', authenticate, requirePatientAccess, familyCtrl.getFamilyTree);
 router.post('/family/member', authenticate, familyCtrl.addFamilyMember);
+router.post('/family/members', authenticate, familyCtrl.addFamilyMember);
 router.put('/family/member/:id', authenticate, familyCtrl.updateFamilyMember);
+router.put('/family/members/:id', authenticate, familyCtrl.updateFamilyMember);
 router.delete('/family/member/:id', authenticate, familyCtrl.deleteFamilyMember);
+router.delete('/family/members/:id', authenticate, familyCtrl.deleteFamilyMember);
 
 // --- Referral Routes ---
 router.post('/referrals', authenticate, authorize(['DOCTOR']), refCtrl.createReferral);

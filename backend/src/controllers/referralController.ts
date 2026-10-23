@@ -161,7 +161,7 @@ export async function getPatientReferrals(req: AuthRequest, res: Response) {
 export async function updateReferralStatus(req: AuthRequest, res: Response) {
   try {
     const referralId = req.params.id;
-    const { status, clinicalNotes } = req.body;
+    const { status, clinicalNotes, resolutionNotes } = req.body;
 
     const referral = await prisma.referral.findUnique({
       where: { id: referralId },
@@ -175,11 +175,15 @@ export async function updateReferralStatus(req: AuthRequest, res: Response) {
       return res.status(404).json({ error: 'Referral not found.' });
     }
 
+    const noteToSave = resolutionNotes
+      ? (referral.clinicalNotes ? `${referral.clinicalNotes} | Resolution: ${resolutionNotes}` : `Resolution: ${resolutionNotes}`)
+      : (clinicalNotes || referral.clinicalNotes);
+
     const updated = await prisma.referral.update({
       where: { id: referralId },
       data: {
         status,
-        clinicalNotes: clinicalNotes || referral.clinicalNotes,
+        clinicalNotes: noteToSave,
       },
     });
 

@@ -66,7 +66,8 @@ export async function register(req: Request, res: Response) {
       return res.status(400).json({ error: 'Password must contain at least one number.' });
     }
 
-    const existingUser = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+    const cleanEmail = email.trim().toLowerCase();
+    const existingUser = await prisma.user.findUnique({ where: { email: cleanEmail } });
     if (existingUser) {
       return res.status(400).json({ error: 'Registration failed: An account with this email address already exists.' });
     }
@@ -76,7 +77,7 @@ export async function register(req: Request, res: Response) {
 
     const user = await prisma.user.create({
       data: {
-        email: email.toLowerCase(),
+        email: cleanEmail,
         passwordHash,
         role,
         name,
@@ -173,15 +174,17 @@ export async function login(req: Request, res: Response) {
       return res.status(400).json({ error: 'Email and password are required.' });
     }
 
+    const cleanEmail = email.trim().toLowerCase();
+
     // Check for account lockout
-    const lockoutCheck = checkLockout(email.toLowerCase());
+    const lockoutCheck = checkLockout(cleanEmail);
     if (lockoutCheck.locked) {
       await logAudit(
         { user: undefined, ip: req.socket.remoteAddress } as any,
         'LOGIN_BLOCKED',
         'USER',
         undefined,
-        `Login blocked for ${email} (too many failed attempts)`
+        `Login blocked for ${cleanEmail} (too many failed attempts)`
       );
       return res.status(429).json({
         error: 'Account temporarily locked due to too many failed login attempts. Please try again later.',
@@ -190,51 +193,44 @@ export async function login(req: Request, res: Response) {
     }
 
     const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
+      where: { email: cleanEmail },
       include: {
         patient: true,
         doctor: { include: { hospital: true } },
       },
     });
 
-    // Generic error to prevent user enumeration
     if (!user) {
-      recordFailedLogin(email.toLowerCase());
-      const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
-      const userAgent = req.headers['user-agent'] || 'Unknown';
-      await prisma.loginHistory.create({
-        data: {
-          userId: '00000000-0000-0000-0000-000000000000', // Placeholder for anonymous
-          ipAddress: String(ipAddress),
-          userAgent: String(userAgent),
-          success: false,
-          failureReason: 'User not found',
-        },
-      });
+      recordFailedLogin(cleanEmail);
       await logAudit(
         { user: undefined, ip: req.socket.remoteAddress } as any,
         'LOGIN_FAILED',
         'USER',
         undefined,
-        `Failed login attempt for ${email.toLowerCase()}`
+        `Failed login attempt for unknown email ${cleanEmail}`
       );
       return res.status(401).json({ error: 'Invalid credentials. Please verify email and password.' });
     }
 
     const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) {
-      recordFailedLogin(email.toLowerCase());
-      const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
-      const userAgent = req.headers['user-agent'] || 'Unknown';
-      await prisma.loginHistory.create({
-        data: {
-          userId: user.id,
-          ipAddress: String(ipAddress),
-          userAgent: String(userAgent),
-          success: false,
-          failureReason: 'Invalid password',
-        },
-      });
+      recordFailedLogin(cleanEmail);
+      try {
+        const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+        const userAgent = req.headers['user-agent'] || 'Unknown';
+        await prisma.loginHistory.create({
+          data: {
+            userId: user.id,
+            ipAddress: String(ipAddress),
+            userAgent: String(userAgent),
+            success: false,
+            failureReason: 'Invalid password',
+          },
+        });
+      } catch (err) {
+        // Non-blocking history record
+      }
+
       await logAudit(
         { user: undefined, ip: req.socket.remoteAddress } as any,
         'LOGIN_FAILED',
@@ -246,25 +242,30 @@ export async function login(req: Request, res: Response) {
     }
 
     // Clear failed login attempts on successful login
-    clearFailedLogins(email.toLowerCase());
+    clearFailedLogins(cleanEmail);
 
     // Generate session ID for revocation support
     const sessionId = generateSessionId();
 
-    // Record login history
-    const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
-    const userAgent = req.headers['user-agent'] || 'Unknown';
-    await prisma.loginHistory.create({
-      data: {
-        userId: user.id,
-        ipAddress: String(ipAddress),
-        userAgent: String(userAgent),
-        success: true,
-      },
-    });
+    const ipAddress = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1');
+    const userAgent = String(req.headers['user-agent'] || 'Unknown');
+
+    // Record login history safely
+    try {
+      await prisma.loginHistory.create({
+        data: {
+          userId: user.id,
+          ipAddress,
+          userAgent,
+          success: true,
+        },
+      });
+    } catch (err) {
+      // Non-blocking history record
+    }
 
     // Create session in Redis for revocation support (non-blocking)
-    createSession(sessionId, user.id, user.role, String(ipAddress), String(userAgent)).catch((err) => {
+    createSession(sessionId, user.id, user.role, ipAddress, userAgent).catch((err) => {
       console.error('[Auth] Failed to create session:', err);
     });
 
@@ -292,6 +293,9 @@ export async function login(req: Request, res: Response) {
         name: user.name,
         role: user.role,
         phone: user.phone,
+        avatarUrl: (user as any).avatarUrl,
+        bannerUrl: (user as any).bannerUrl,
+        emailVerified: user.emailVerified,
         patient: user.patient ? {
           ...user.patient,
           verificationStatus: user.patient.verificationStatus,
@@ -330,10 +334,6 @@ export async function getMe(req: AuthRequest, res: Response) {
       return res.status(404).json({ error: 'User not found.' });
     }
 
-    if (!user) {
-      return res.status(404).json({ error: 'User not found.' });
-    }
-
     return res.json({
       id: user.id,
       email: user.email,
@@ -341,6 +341,8 @@ export async function getMe(req: AuthRequest, res: Response) {
       role: user.role,
       phone: user.phone,
       avatarUrl: (user as any).avatarUrl,
+      bannerUrl: (user as any).bannerUrl,
+      emailVerified: user.emailVerified,
       patient: user.patient ? {
         ...user.patient,
         verificationStatus: user.patient.verificationStatus,
@@ -804,6 +806,7 @@ export async function socialLogin(req: Request, res: Response) {
         role: user!.role,
         phone: user!.phone,
         avatarUrl: user!.avatarUrl,
+        bannerUrl: user!.bannerUrl,
         emailVerified: user!.emailVerified,
         patient: user!.patient,
         doctor: user!.doctor,
