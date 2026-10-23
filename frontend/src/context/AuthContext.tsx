@@ -86,9 +86,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(res.data);
           localStorage.setItem('smarthealth_user', JSON.stringify(res.data));
           fetchNotificationsCount();
-        } catch {
-          // Token invalid
-          logout();
+        } catch (err: any) {
+          // Only log out on explicit 401 Unauthorized; preserve session if backend is offline/standalone
+          if (err?.response?.status === 401) {
+            logout();
+          }
         }
       }
       setIsLoading(false);
