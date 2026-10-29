@@ -256,6 +256,11 @@ button, input, select, textarea {
   50% { opacity: 0.6; transform: scale(1.15); }
 }
 
+@keyframes pulse-green {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(21,128,61,0.18); }
+  50% { box-shadow: 0 0 0 6px rgba(21,128,61,0.08); }
+}
+
 .system-tech-badge {
   font-size: 0.68rem;
   color: #64748b;

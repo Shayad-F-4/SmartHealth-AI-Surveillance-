@@ -332,6 +332,25 @@ export const PatientAppointmentsPage: React.FC<PatientAppointmentsPageProps> = (
                 const isRejected = app.status === 'REJECTED';
                 const isCompleted = app.status === 'COMPLETED';
 
+                // ── Time-gate: Join Video Consult logic ──
+                // Window: 30 min before → 90 min after appointment start
+                let videoLinkStatus: 'upcoming' | 'live' | 'expired' = 'upcoming';
+                let minutesUntil = 0;
+                if (app.meetingLink && isApproved && app.appointmentDate && app.startTime) {
+                  try {
+                    const [hh, mm] = (app.startTime || '00:00').split(':').map(Number);
+                    const apptDate = new Date(app.appointmentDate);
+                    apptDate.setHours(hh, mm, 0, 0);
+                    const now = Date.now();
+                    const apptMs = apptDate.getTime();
+                    const windowStart = apptMs - 30 * 60 * 1000;   // 30 min before
+                    const windowEnd   = apptMs + 90 * 60 * 1000;   // 90 min after
+                    minutesUntil = Math.ceil((apptMs - now) / 60000);
+                    if (now >= windowStart && now <= windowEnd) videoLinkStatus = 'live';
+                    else if (now > windowEnd) videoLinkStatus = 'expired';
+                  } catch { /* ignore parse error */ }
+                }
+
                 const statusColor = isApproved ? '#059669' : isPending ? '#d97706' : isRejected ? '#dc2626' : '#0284c7';
                 const statusBg = isApproved ? '#ecfdf5' : isPending ? '#fffbeb' : isRejected ? '#fef2f2' : '#f0f9ff';
                 const statusBorder = isApproved ? '#a7f3d0' : isPending ? '#fde68a' : isRejected ? '#fecaca' : '#bae6fd';
@@ -433,25 +452,71 @@ export const PatientAppointmentsPage: React.FC<PatientAppointmentsPageProps> = (
 
                       {app.meetingLink && isApproved && (
                         <div style={{ marginTop: '0.75rem' }}>
-                          <a
-                            href={app.meetingLink}
-                            target="_blank"
-                            rel="noreferrer"
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '0.4rem',
-                              padding: '0.45rem 0.85rem',
-                              background: '#15803d',
-                              color: 'white',
-                              borderRadius: 8,
-                              fontSize: '0.78rem',
-                              fontWeight: 700,
-                              textDecoration: 'none',
-                            }}
-                          >
-                            <Video size={14} /> Join Video Consult
-                          </a>
+
+                          {/* ── LIVE window: clickable ── */}
+                          {videoLinkStatus === 'live' && (
+                            <a
+                              href={app.meetingLink}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{
+                                display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                                padding: '0.5rem 1rem',
+                                background: 'linear-gradient(135deg, #15803d, #16a34a)',
+                                color: 'white', borderRadius: 8, fontSize: '0.78rem',
+                                fontWeight: 700, textDecoration: 'none',
+                                boxShadow: '0 0 0 3px rgba(21,128,61,0.18)',
+                                animation: 'pulse-green 2s infinite',
+                              }}
+                            >
+                              <Video size={14} /> Join Video Consult
+                              <span style={{ fontSize: '0.68rem', opacity: 0.85, marginLeft: 2 }}>(Live)</span>
+                            </a>
+                          )}
+
+                          {/* ── UPCOMING: countdown hint ── */}
+                          {videoLinkStatus === 'upcoming' && minutesUntil > 0 && (
+                            <div style={{
+                              display: 'inline-flex', alignItems: 'center', gap: '0.45rem',
+                              padding: '0.45rem 0.85rem', background: '#eff6ff',
+                              border: '1px solid #bfdbfe', borderRadius: 8,
+                              fontSize: '0.76rem', fontWeight: 700, color: '#1d4ed8',
+                            }}>
+                              <Clock size={13} />
+                              {minutesUntil >= 60
+                                ? `Link opens ${Math.floor(minutesUntil / 60)}h ${minutesUntil % 60}m before appointment`
+                                : `Link opens in ${minutesUntil} min — join then`
+                              }
+                            </div>
+                          )}
+
+                          {/* ── EXPIRED: rebook nudge ── */}
+                          {videoLinkStatus === 'expired' && (
+                            <div style={{
+                              background: '#fff7ed', border: '1px solid #fed7aa',
+                              borderRadius: 10, padding: '0.65rem 0.85rem',
+                              display: 'flex', flexDirection: 'column', gap: '0.4rem',
+                            }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.76rem', fontWeight: 700, color: '#c2410c' }}>
+                                <AlertCircle size={13} /> Consultation window has expired
+                              </div>
+                              <p style={{ fontSize: '0.72rem', color: '#78350f', margin: 0 }}>
+                                You missed this session. Please book a new appointment.
+                              </p>
+                              <button
+                                onClick={() => setActiveTab('book')}
+                                style={{
+                                  marginTop: '0.2rem', padding: '0.38rem 0.75rem',
+                                  background: '#ea580c', color: 'white', border: 'none',
+                                  borderRadius: 7, fontSize: '0.74rem', fontWeight: 700,
+                                  cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', width: 'fit-content',
+                                }}
+                              >
+                                <Plus size={13} /> Book New Appointment
+                              </button>
+                            </div>
+                          )}
+
                         </div>
                       )}
                     </div>
